@@ -6,6 +6,8 @@
 Queue verifiable tasks before you sleep. Wake up to isolated git branches and an executive summary.
 
 [![npm version](https://img.shields.io/npm/v/@junaedkhandakar/nightshift?color=cb3837&style=flat-square)](https://www.npmjs.com/package/@junaedkhandakar/nightshift)
+[![npm downloads](https://img.shields.io/npm/dt/@junaedkhandakar/nightshift?style=flat-square&color=28a745&logo=npm)](https://www.npmjs.com/package/@junaedkhandakar/nightshift)
+[![npm monthly downloads](https://img.shields.io/npm/dm/@junaedkhandakar/nightshift?style=flat-square&color=blue)](https://www.npmjs.com/package/@junaedkhandakar/nightshift)
 [![npm license](https://img.shields.io/npm/l/@junaedkhandakar/nightshift?style=flat-square)](LICENSE)
 [![node version](https://img.shields.io/node/v/@junaedkhandakar/nightshift?style=flat-square)](https://nodejs.org)
 [![platform](https://img.shields.io/badge/platform-windows%20%7C%20macos%20%7C%20linux-lightgrey?style=flat-square)](#install)
