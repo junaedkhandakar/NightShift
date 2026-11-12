@@ -1,4 +1,4 @@
-# Publish @junaed93/nightshift to npm using trusted publishing (OIDC).
+# Publish @junaedkhandakar/nightshift to npm using trusted publishing (OIDC).
 #
 # No NPM_TOKEN secret is involved. npm verifies this workflow's identity through
 # GitHub's OIDC provider and issues a short-lived, single-use credential, so
@@ -11,7 +11,7 @@
 #   1. Publish the package manually once, so it exists on the registry.
 #      A trusted publisher can only be configured for an existing package.
 #   2. Open the package settings -> Trusted Publisher -> GitHub Actions, and fill in:
-#        Organization or user : Junaed93
+#        Organization or user : junaedkhandakar
 #        Repository           : NightShift
 #        Workflow filename    : publish.yml
 #        Environment name     : (leave blank)

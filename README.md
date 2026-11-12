@@ -1,383 +1,292 @@
-# nightshift
+<div align="center">
 
-[![npm](https://img.shields.io/npm/v/@junaed93/nightshift)](https://www.npmjs.com/package/@junaed93/nightshift)
-[![license](https://img.shields.io/npm/l/@junaed93/nightshift)](LICENSE)
+# 🌙 NightShift
 
-Overnight supervisor for headless coding agents. Drop small, verifiable tasks
-into a queue, go to sleep, wake up to a report and one git branch per task.
+**Autonomous overnight supervisor for headless coding agents.**  
+Queue verifiable tasks before you sleep. Wake up to isolated git branches and an executive summary.
 
-It does not care which agent you use. It wraps the same primitive every harness
-already has — "run this prompt non-interactively and exit" — and adds the three
-things that make unattended work safe:
+[![npm version](https://img.shields.io/npm/v/@junaedkhandakar/nightshift?color=cb3837&style=flat-square)](https://www.npmjs.com/package/@junaedkhandakar/nightshift)
+[![npm license](https://img.shields.io/npm/l/@junaedkhandakar/nightshift?style=flat-square)](LICENSE)
+[![node version](https://img.shields.io/node/v/@junaedkhandakar/nightshift?style=flat-square)](https://nodejs.org)
+[![platform](https://img.shields.io/badge/platform-windows%20%7C%20macos%20%7C%20linux-lightgrey?style=flat-square)](#install)
+[![GitHub](https://img.shields.io/badge/github-junaedkhandakar%2FNightShift-blue?style=flat-square&logo=github)](https://github.com/junaedkhandakar/NightShift)
 
-1. **A fresh process and fresh context per task** (no 8-hour context rot).
-2. **An external gate** — the agent's "done" means nothing; your tests decide.
-3. **A worktree per task** — one bad task cannot poison the next one.
+---
+
+</div>
+
+NightShift acts as an unattended supervisor for your existing coding agents (**Claude Code**, **Codex**, or **OpenCode**). It takes the non-interactive execution mode of these agents and wraps them in three safety boundaries:
+
+1. ⚡ **Fresh Process & Context per Task** — Prevents multi-hour context rot and runaway token bloat.
+2. 🛡️ **External Verification Gate** — The agent's self-reported "Done" means nothing. Your test suite and build steps decide.
+3. 🌿 **Isolated Git Worktree per Task** — Work happens in dedicated ephemeral worktrees (`.nightshift/work/<id>`). One corrupted task cannot break another or pollute your main working tree.
 
 ```
-tasks/queue/*.md  ->  worktree  ->  agent  ->  gate  ->  commit on nightshift/<id>
-                                    |
-                                    +-> tasks/failed/ + REPORT.md entry
+ tasks/queue/*.md
+        │
+        ▼
+ ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+ │ Git Worktree │ ───► │  Agent CLI   │ ───► │  Test Gate   │
+ │ (clean ref)  │      │ (fresh turn) │      │  (npm test)  │
+ └──────────────┘      └──────────────┘      └──────────────┘
+                                                     │
+                             ┌───────────────────────┴───────────────────────┐
+                             ▼                                               ▼
+                    [PASS] Commit & Branch                         [FAIL] Quarantine
+                    nightshift/<task-id>                           tasks/failed/<task-id>.md
+                    + REPORT.md Entry                              + Captured BLOCKED.md
 ```
 
-## In one sentence
+---
 
-You write to-do files, go to sleep, and every task comes back as its own git
-branch that either passed your tests or was rejected.
+## ⚡ Quick Start
 
-## Install
+### 1. Requirements
 
-You need **Node 20 or newer** and **git**. Confirm both:
+- **Node.js**: `v20.0.0` or higher
+- **Git**: `2.30+`
+- Any supported AI CLI installed and logged in (**Claude Code**, **OpenAI Codex**, or **OpenCode**)
 
-```powershell
-node --version     # v20.x.x or higher
+```bash
+node --version    # must be >= v20
 git --version
 ```
 
-Then install:
+### 2. Installation
 
-```powershell
-npm install -g @junaed93/nightshift
+Install globally via npm:
+
+```bash
+npm install -g @junaedkhandakar/nightshift
+```
+
+Verify installation:
+```bash
 nightshift version
 ```
 
-If `nightshift version` prints a number, you are done.
+> **Note:** If `nightshift` is not recognized, ensure your npm global bin is on your `PATH`. (Run `npm config get prefix` and add that directory to your environment variables).
 
-If the terminal says `nightshift is not recognized`, npm's global folder is not
-on your `PATH`. Run `npm config get prefix`, add that folder to `PATH`, and
-reopen the terminal.
+---
 
-NightShift drives an agent, it does not replace one, so you need one installed
-and already logged in:
+## 🚀 5-Minute Walkthrough
 
-| Agent | Install | Verify |
-| --- | --- | --- |
-| Claude Code (default) | `npm install -g @anthropic-ai/claude-code` | `claude --version` |
-| Codex | OpenAI's instructions | `codex --version` |
-| OpenCode | OpenCode's instructions | `opencode --version` |
+### Step 1: Initialize your repository
 
-Only one is needed. Run it once by hand first, so you know it works without
-NightShift in the way.
+From the root of any git repository:
 
-### Other ways to install
-
-```powershell
-npm install -g github:Junaed93/NightShift    # newest commit, unreleased
-git clone https://github.com/Junaed93/NightShift.git D:\nightshift
-cd D:\nightshift; npm link                   # for working on NightShift itself
-```
-
-## First run, step by step
-
-Do this in order. Nothing costs money until step 6.
-
-### 1. Make a practice repo
-
-Do not start with your real project.
-
-```powershell
-mkdir C:\code\demo
-cd C:\code\demo
-git init
-"# demo" | Set-Content README.md
-git add -A
-git commit -m "first commit"
-```
-
-### 2. Let NightShift set itself up
-
-From inside the repo:
-
-```powershell
+```bash
 nightshift init
 ```
 
-It prints what it wrote:
-
+This scaffolds:
 ```
-wrote C:\code\demo\nightshift.config.json
-wrote C:\code\demo\tasks\queue\000-example.md
-added .nightshift/ to .gitignore
+├── nightshift.config.json    # Supervisor configuration
+├── tasks/
+│   ├── queue/                # Drop task markdown files here
+│   │   └── 000-example.md
+│   ├── done/                 # Completed tasks moved here
+│   └── failed/               # Rejected tasks moved here
+└── .nightshift/              # Logs, worktrees, and REPORT.md (auto-gitignored)
 ```
 
-### 3. Tell it how to check work
+### Step 2: Configure your Test Gate
 
-Open `C:\code\demo\nightshift.config.json` and replace the `gate` line with:
+Open `nightshift.config.json` and configure your verification commands:
 
 ```json
-"gate": ["node --version"]
+{
+  "harness": "claude",
+  "gate": ["npm test", "npm run build"],
+  "protect": ["tests/**", "*.test.*", ".github/**", "package-lock.json"]
+}
 ```
 
-This is a **fake gate** that always passes. It is only here so you can watch the
-machinery work without needing tests. On a real project, use your real check:
+* **`gate`**: Commands that must exit `0`. If any fail, the agent's work is rejected and quarantined.
+* **`protect`**: File patterns the agent is forbidden from editing. If the agent modifies your test suite or CI files to "pass" tests artificially, NightShift rejects it immediately.
 
-```json
-"gate": ["npm test", "npm run build"]
-```
+### Step 3: Write a Task
 
-Every gate command must exit 0 or the task fails. This is the most important
-setting in the file. The agent saying "done" counts for nothing; the gate decides.
+Tasks are straightforward Markdown files placed inside `tasks/queue/`. The filename becomes the task ID and git branch name.
 
-### 4. Write one task
-
-Replace the contents of `tasks\queue\000-example.md` with:
-
-```md
-# Add a greeting to the README
-
-Append a line to README.md that says exactly: Hello from NightShift
-
-Do not change any other file.
-```
-
-The filename is the task id and the branch name: `fix-login.md` becomes branch
-`nightshift/fix-login`.
-
-### 5. Practise for free
-
-```powershell
-nightshift run --dry-run --once
-```
-
-`--dry-run` swaps in a fake agent. No model calls, no money. Expect:
-
-```
-dry run: using the dummy harness, no model calls
-done   000-example (1s)
-nightshift: 1/1 task(s) done in 1s.
-```
-
-If it says `failed ... gate failed`, your gate command is wrong. Fix step 3.
-
-### 6. Do it for real
-
-```powershell
-nightshift run --once
-```
-
-Same thing, but now the agent really edits files. One task only, so you can
-watch. Expect a minute or two and a few cents.
-
-### 7. Check the work
-
-```powershell
-nightshift status
-git log --oneline -3
-git diff main nightshift/000-example
-```
-
-Nothing was merged. The work sits on its own branch. Merge it if you like it:
-
-```powershell
-git merge nightshift/000-example
-```
-
-### 8. Leave it running
-
-Put real tasks in `tasks\queue\`, one file each, then:
-
-```powershell
-nightshift run
-```
-
-Go to bed. In the morning `nightshift status` summarises the night and
-`.nightshift\REPORT.md` has one entry per task, with the diffstat.
-
-## If something goes wrong
-
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| `nightshift is not recognized` | npm global folder not on `PATH` | add the output of `npm config get prefix` to `PATH`, reopen the terminal |
-| `failed ... gate failed` | gate command exits non-zero | run that command yourself in the repo and fix it |
-| `failed ... protected path` | agent edited tests, CI config, or a lockfile | working as designed; reword the task so it does not need to |
-| `failed ... timed out` | task too big for its minute limit | raise `minutes` in the task, or split it into two |
-| nothing happens | `tasks\queue\` is empty | add a `.md` file there |
-| `failed ... not found` | the agent CLI is missing | `claude --version`, install it if that fails |
-
-## A task
-
-One file per task in `tasks/queue/`. The filename is the id and the branch name.
-Frontmatter is optional.
-
-```md
+Example: `tasks/queue/fix-login-redirect.md`
+```markdown
 ---
 minutes: 20
 turns: 30
-gate: npm test -- src/auth
+gate: npm test -- tests/auth
 model: sonnet
 ---
 
-# Fix the expired-session redirect
+# Fix Expired Session Redirect
 
-After the token expires, `/app` renders a blank page instead of redirecting to
-`/login`.
+When a session token expires, navigating to `/dashboard` renders a blank page instead of redirecting to `/login`.
 
-Acceptance:
-- a session with an expired token redirects to `/login`
-- valid sessions are unaffected
-- no new dependencies
+### Acceptance Criteria:
+- Expired tokens redirect to `/login` with `?expired=true`.
+- Active, valid sessions are unaffected.
+- No new runtime dependencies.
 ```
 
-Write tasks like you are briefing a competent contractor who cannot ask
-follow-up questions: one outcome, a clear definition of done, and a file or two
-of context. "Improve the codebase" produces eight hours of confident garbage.
+### Step 4: Dry Run (Free & Safe)
 
-## How a task is processed
+Test your workflow pipeline without spending API tokens:
 
-1. The task file is atomically moved to `tasks/queue/.running/` (crash-safe).
-2. A worktree is created at `.nightshift/work/<id>` on branch
-   `nightshift/<id>`, cut from `baseBranch` and **pinned to that commit**.
-3. The full instructions are written to `.nightshift/prompt.md` and the harness
-   is told to read it. (Keeping the task text out of `argv` avoids every shell
-   quoting problem on Windows.)
-4. The agent runs with a wall-clock limit. Output streams to
-   `.nightshift/logs/<id>.jsonl`.
-5. **Protected paths are checked.** If the agent touched tests, CI config, or a
-   lockfile, the task fails without running the gate.
-6. The gate commands run. All must exit 0.
-7. On success: commit, move to `tasks/done/`, log the diffstat.
-   On failure: move to `tasks/failed/`, capture `BLOCKED.md` if there is one.
+```bash
+nightshift run --dry-run --once
+```
 
-Nothing is merged. You wake up to branches and a report, and merge what you
-trust.
+### Step 5: Start the Overnight Run
 
-## Harnesses
+```bash
+# Run one task interactively to observe
+nightshift run --once
 
-| Harness | Invocation | Needs |
-|---|---|---|
-| `claude` (default) | `claude -p --dangerously-skip-permissions --output-format stream-json` | Claude Code CLI, logged in or `ANTHROPIC_API_KEY` |
-| `codex` | `codex exec --full-auto --json` | Codex CLI |
-| `opencode` | `opencode run` | OpenCode CLI + auto-approved permissions in that repo |
-| `dummy` | internal | nothing — used by `--dry-run` |
+# Or work through the entire queue overnight
+nightshift run
+```
 
-Pick per run with `--harness codex`, or set `"harness"` in the config.
+Go to sleep. When you return:
+```bash
+nightshift status
+```
+Check `.nightshift/REPORT.md` for a complete audit log, diffstats, and costs.
 
-`claude` also reports `total_cost_usd`, so the `budgetUSD` limit is exact for it.
-For the others the budget is advisory; the wall clock and `maxTasks` still hold.
+---
 
-## Config
+## 🤖 Supported Agent Harnesses
 
-`nightshift.config.json` in the target repo. Every field is optional.
+NightShift interfaces directly with official agent CLIs in non-interactive streaming mode:
+
+| Harness | Flag / Setting | Execution Command | Required Auth |
+| :--- | :--- | :--- | :--- |
+| **Claude Code** *(default)* | `--harness claude` | `claude -p --dangerously-skip-permissions --output-format stream-json` | Logged in or `ANTHROPIC_API_KEY` |
+| **Codex** | `--harness codex` | `codex exec --full-auto --json` | OpenAI Codex CLI login |
+| **OpenCode** | `--harness opencode` | `opencode run` | OpenCode CLI configured |
+| **Dummy** | `--harness dummy` | Internal simulation mock | None (Used for `--dry-run`) |
+
+Switch harnesses per run:
+```bash
+nightshift run --harness codex
+```
+
+---
+
+## 📋 CLI Reference
+
+```
+nightshift <command> [options]
+```
+
+| Command | Description |
+| :--- | :--- |
+| `nightshift init [--cwd <path>]` | Scaffolds configuration and task directories in the project. |
+| `nightshift run` | Processes all tasks in `tasks/queue/` sequentially. |
+| `nightshift run --once` | Executes only the next task in queue and exits. |
+| `nightshift run --dry-run` | Executes the queue using a simulated agent (no API cost). |
+| `nightshift status` | Prints queue statistics, spend, and recent task report. |
+| `nightshift retry <id>` | Moves a task from `tasks/failed/<id>.md` back to `tasks/queue/`. |
+| `nightshift clean [--all]` | Cleans completed worktrees (add `--all` to prune branches). |
+| `nightshift version` | Displays the current installed NightShift version. |
+
+### CLI Overrides
+You can override configuration flags dynamically on any run:
+* `--harness <name>` — `claude`, `codex`, `opencode`, or `dummy`
+* `--model <model>` — Target specific LLM model ID
+* `--minutes <n>` — Wall-clock timeout per task
+* `--max-turns <n>` — Maximum conversational turns
+* `--budget <usd>` — Spend ceiling (stops runner when reached)
+* `--max-tasks <n>` — Maximum number of tasks to complete
+
+---
+
+## ⚙️ Configuration Reference
+
+Settings live in `nightshift.config.json` at your project root:
 
 ```json
 {
   "harness": "claude",
   "model": null,
-  "limits": { "minutes": 45, "maxTurns": 60, "budgetUSD": 10, "maxTasks": 0 },
+  "limits": {
+    "minutes": 45,
+    "maxTurns": 60,
+    "budgetUSD": 10.0,
+    "maxTasks": 0
+  },
   "gate": ["npm test"],
-  "protect": ["tests/**", "*.test.*", ".github/**", "package-lock.json"],
+  "protect": [
+    "tests/**",
+    "*.test.*",
+    ".github/**",
+    "package-lock.json"
+  ],
   "baseBranch": "HEAD",
   "branchPrefix": "nightshift/",
-  "harnessArgs": { "claude": [] },
-  "notify": { "webhook": null, "format": "text" }
+  "harnessArgs": {
+    "claude": []
+  },
+  "notify": {
+    "webhook": null,
+    "format": "text"
+  }
 }
 ```
 
-- `limits.minutes` — wall clock per task, enforced with a process-tree kill.
-- `limits.budgetUSD` — stop the night when spent. `0` = unlimited.
-- `notify.format` — `text` (ntfy, custom), `discord`, or `slack`.
-- `baseBranch` — cut worktrees from this ref. `HEAD` is fine for solo work.
+* **`limits.minutes`**: Wall-clock timeout enforced with process-tree termination.
+* **`limits.budgetUSD`**: Hard spending stop (supported accurately on Claude via streaming token usage).
+* **`protect`**: Glob patterns that reject tasks if modified by the agent.
+* **`notify`**: Send execution summaries to Discord, Slack, or ntfy webhooks.
 
-## Commands
+---
 
+## 🔒 Safety & Operational Security
+
+Headless coding agents run code and execute shell commands without human intervention. Follow these best practices:
+
+* **Use dedicated or throwaway environments**: Run NightShift inside containers, a VPS, or a secondary machine. (See `docker/` for Docker configurations).
+* **Zero production secrets**: Do not expose production database credentials or high-privilege keys in the running environment.
+* **Protected paths**: Keep tests and lockfiles protected in `nightshift.config.json`.
+* **Zero automatic merge**: NightShift **never** pushes or merges into `main`. It creates reviewable branches (`nightshift/<task-id>`) for human inspection.
+
+---
+
+## 🛠️ Troubleshooting
+
+| Symptom | Probable Cause | Recommended Fix |
+| :--- | :--- | :--- |
+| `nightshift is not recognized` | npm global bin directory is not on system `PATH` | Run `npm config get prefix`, add that path to your environment variables, and restart terminal. |
+| `failed ... gate failed` | Verification test command returned exit code `!= 0` | Run your gate command manually (`npm test`) in your repo to inspect the failure. |
+| `failed ... protected path` | The agent edited a restricted file (tests, lockfile, CI) | Reword the task prompt so the agent understands it must not touch test or CI definitions. |
+| `failed ... timed out` | Task exceeded wall-clock minute limit | Increase `minutes` in the task frontmatter or break the task into smaller sub-tasks. |
+| `failed ... not found` | Selected agent CLI is not installed or available | Verify the agent CLI (`claude --version`, `codex --version`, etc.) is installed globally. |
+| Nothing happens on `run` | `tasks/queue/` contains no `.md` files | Add a Markdown task file to `tasks/queue/`. |
+
+---
+
+## 📦 Distribution & Development
+
+### Working from Source
+
+```bash
+git clone https://github.com/junaedkhandakar/NightShift.git
+cd NightShift
+npm install
+npm test
+npm link
 ```
-nightshift init [--cwd DIR]        scaffold a target repo
-nightshift run                     work through the queue
-nightshift run --once              one task
-nightshift run --dry-run           plumbing test, no model calls
-nightshift status                  counts, spend, recent report
-nightshift retry <id>              tasks/failed/<id>.md -> queue
-nightshift clean                   remove worktrees (--all also branches)
-```
 
-Per-run overrides: `--harness`, `--model`, `--minutes`, `--max-turns`,
-`--budget`, `--max-tasks`.
+### Automated Release Workflow
 
-## Safety
+Releases are published automatically to npm using GitHub Actions Trusted Publishing (OIDC):
 
-Unattended agents edit files and run commands with permissions skipped. Treat
-that box as compromised:
-
-- Run it in a container or a throwaway VM, not on your daily driver with your
-  SSH keys. See `docker/`.
-- No production credentials in the environment. The agent inherits it.
-- `protect` is a speed bump, not a security boundary.
-- Never let it push or merge automatically. It commits to a branch; you review.
-- Keep `budgetUSD` and `limits.minutes` set. Runaway loops are the normal
-  failure mode, not the exotic one.
-
-## Where to run it
-
-The supervisor must run on a machine that stays awake — that is the whole point.
-
-- **Home server / mini PC / VPS**: `tmux new -s night`, run it, detach, close the
-  laptop. `systemctl` if you want it recurring.
-- **GitHub Actions**: see `templates/github-action.yml`. Free-ish, always on,
-  and the laptop can be off entirely.
-- **This laptop**: it will not run while asleep. Either keep it awake while a
-  job runs, or accept that the machine must be on.
-
-## Roadmap
-
-- [ ] `nightshift doctor` — verify the harness is installed and authenticated
-- [ ] concurrency > 1 with a merge queue
-- [ ] reviewer pass: second model checks the diff against the task
-- [ ] PR mode (`gh pr create` per task) instead of local branches
-- [ ] resume a failed task with its harness session id
-- [ ] daily digest instead of per-run webhook
-
-## Releasing
-
-Releases go out from CI, not from a laptop. `.github/workflows/publish.yml`
-publishes on any `v*` tag using trusted publishing (OIDC), so there is no npm
-token in this repo and none in the workflow's secrets:
-
-```powershell
-npm version patch      # or minor / major; commits and tags
+```bash
+npm version patch      # Bumps version, commits, and creates tag
 git push --follow-tags
 ```
 
-The tag starts the workflow, which installs, runs `npm test`, and publishes.
-npm verifies the workflow's identity over OIDC and attaches a provenance
-attestation, so every release traces back to a commit.
+---
 
-One-time setup per package: on npmjs.com, open the package, then
-Settings -> Trusted Publisher -> GitHub Actions, and enter:
+## 📄 License
 
-| Field | Value |
-| --- | --- |
-| Organization or user | `Junaed93` |
-| Repository | `NightShift` |
-| Workflow filename | `publish.yml` |
-| Environment name | leave blank |
-| Allowed actions | `npm publish` |
-
-The environment name must stay blank to match the workflow. npm expires a new
-trusted publisher if its first publish does not succeed within 2 days, so
-exercise it fairly soon after saving.
-
-### Publishing by hand
-
-Only needed before the trusted publisher exists. npm requires 2FA for every
-publish, so this is interactive:
-
-```powershell
-npm login
-npm test
-npm publish            # prompts for a one-time password
-```
-
-A granular access token with **bypass 2FA** enabled can publish without the
-prompt, but npm is phasing those out and they cannot be used for account
-settings. Prefer the workflow.
-
-`prepublishOnly` runs `npm test`, so a tree that fails verification cannot be
-published from either path.
-
-### Name
-
-The package is scoped (`@junaed93/nightshift`) because the registry rejects the
-unscoped name as "too similar to existing package night-shift", a 2017 macOS
-Night Shift toggle. `publishConfig.access` is `public`, so no `--access` flag is
-needed. The installed command is still `nightshift`.
-
+MIT © [Junaed Khandakar](https://github.com/junaedkhandakar)

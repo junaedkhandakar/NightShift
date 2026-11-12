@@ -1,5 +1,5 @@
 {
-  "name": "@junaed93/nightshift",
+  "name": "@junaedkhandakar/nightshift",
   "version": "0.1.2",
   "description": "Overnight supervisor for headless coding agents (Claude Code, Codex, OpenCode).",
   "type": "module",
@@ -21,11 +21,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Junaed93/NightShift.git"
+    "url": "git+https://github.com/junaedkhandakar/NightShift.git"
   },
-  "homepage": "https://github.com/Junaed93/NightShift#readme",
+  "homepage": "https://github.com/junaedkhandakar/NightShift#readme",
   "bugs": {
-    "url": "https://github.com/Junaed93/NightShift/issues"
+    "url": "https://github.com/junaedkhandakar/NightShift/issues"
   },
   "keywords": [
     "agent",
