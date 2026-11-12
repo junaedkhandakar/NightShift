@@ -14,6 +14,14 @@ function parseArgs(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === "-v") {
+      out.version = true;
+      continue;
+    }
+    if (arg === "-h") {
+      out.help = true;
+      continue;
+    }
     if (!arg.startsWith("--")) {
       out._.push(arg);
       continue;
@@ -49,6 +57,7 @@ function help() {
 Usage:
   nightshift init [--cwd DIR]              scaffold a target repo
   nightshift run [--once] [--dry-run]      work through tasks/queue/*.md
+  nightshift doctor                        check system and agent CLI readiness
   nightshift status                        queue counts + recent report
   nightshift retry <id>                    move tasks/failed/<id>.md back to queue
   nightshift clean [--all]                 remove worktrees, optionally branches
@@ -63,6 +72,8 @@ Flags:
   --max-tasks N      stop after N tasks                 (default: 0 = whole queue)
   --dry-run          use the built-in dummy harness, spend nothing
   --once             process a single task then exit
+  -v, --version      print version
+  -h, --help         print help
 `);
 }
 
@@ -71,14 +82,14 @@ async function main() {
   const flags = parseArgs(rest);
   const cwd = path.resolve(flags.cwd ? String(flags.cwd) : process.cwd());
 
-  if (flags.help || command === "help" || command === "--help") return help();
-  if (command === "version" || flags.version) {
+  if (command === "-h" || command === "--help" || command === "help" || flags.help) return help();
+  if (command === "-v" || command === "--version" || command === "version" || flags.version) {
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     return console.log(pkg.version);
   }
 
+  if (command === "doctor") return doctor(cwd);
   if (command === "init") return init(cwd);
-
   if (command === "status") return status(cwd);
 
   if (command === "retry") {
@@ -207,6 +218,80 @@ function status(cwd) {
   if (existsSync(P.report)) {
     const tail = readFileSync(P.report, "utf8").split(/\r?\n/).slice(-40).join("\n");
     console.log(`\n--- last report entries ---\n${tail}`);
+  }
+}
+
+async function doctor(cwd) {
+  console.log("nightshift doctor\n");
+  let issues = 0;
+  const ok = (msg) => console.log(`  [ok]   ${msg}`);
+  const warn = (msg) => console.log(`  [warn] ${msg}`);
+  const fail = (msg) => {
+    issues += 1;
+    console.log(`  [fail] ${msg}`);
+  };
+
+  // 1. Node.js runtime version
+  const nodeVer = process.versions.node;
+  const major = parseInt(nodeVer.split(".")[0], 10);
+  if (major >= 20) ok(`Node.js v${nodeVer}`);
+  else fail(`Node.js v${nodeVer} (requires >= 20.0.0)`);
+
+  // 2. Git binary availability
+  try {
+    const { execSync } = await import("node:child_process");
+    const gitVer = execSync("git --version", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    ok(gitVer);
+  } catch {
+    fail("Git is not installed or not in PATH");
+  }
+
+  // 3. Inside git repository check
+  try {
+    const { execSync } = await import("node:child_process");
+    execSync("git rev-parse --is-inside-work-tree", { cwd, stdio: "ignore" });
+    ok("Git repository detected");
+  } catch {
+    warn(`Current directory is not a git repository (${cwd})`);
+  }
+
+  // 4. Configuration and Agent CLI check
+  const configPath = path.join(cwd, "nightshift.config.json");
+  if (existsSync(configPath)) {
+    try {
+      const cfg = loadConfig(cwd);
+      ok(`Configuration valid (${configPath})`);
+      ok(`Active harness: "${cfg.harness}"`);
+
+      const { execSync } = await import("node:child_process");
+      try {
+        const bin = cfg.harness === "claude" ? "claude" : cfg.harness;
+        const ver = execSync(`${bin} --version`, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+        ok(`Agent CLI ready: ${bin} (${ver.split("\n")[0]})`);
+      } catch {
+        warn(`Agent CLI "${cfg.harness}" not found in PATH or not logged in yet`);
+      }
+    } catch (err) {
+      fail(`Invalid config: ${err.message}`);
+    }
+  } else {
+    warn("nightshift.config.json not found (run \"nightshift init\" to create)");
+  }
+
+  // 5. Tasks queue status
+  const queueDir = path.join(cwd, "tasks", "queue");
+  if (existsSync(queueDir)) {
+    const queueFiles = readdirSync(queueDir).filter((f) => f.endsWith(".md"));
+    ok(`Queue directory ready (${queueFiles.length} task(s) queued)`);
+  } else {
+    warn("tasks/queue directory not found (run \"nightshift init\" to create)");
+  }
+
+  console.log();
+  if (issues === 0) {
+    console.log("Environment check complete. NightShift is ready to run.");
+  } else {
+    console.log(`${issues} issue(s) detected. Please resolve them before starting unattended runs.`);
   }
 }
 

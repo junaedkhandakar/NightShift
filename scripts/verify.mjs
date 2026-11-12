@@ -62,7 +62,7 @@ try {
 }
 
 // 4. The CLI must answer for itself.
-for (const args of [["--help"], ["version"], ["status"]]) {
+for (const args of [["--help"], ["-h"], ["version"], ["-v"], ["status"], ["doctor"]]) {
   try {
     execFileSync(process.execPath, [path.join(srcDir, "cli.mjs"), ...args], { stdio: "pipe" });
     ok(`cli ${args.join(" ")}`);

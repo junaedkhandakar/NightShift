@@ -1,9 +1,9 @@
 <div align="center">
 
-# 🌙 NightShift
+# NightShift
 
 **Autonomous overnight supervisor for headless coding agents.**  
-Queue verifiable tasks before you sleep. Wake up to isolated git branches and an executive summary.
+Queue verifiable tasks before you sleep. Wake up to isolated git branches and a verified test report.
 
 [![npm version](https://img.shields.io/npm/v/@junaedkhandakar/nightshift?color=cb3837&style=flat-square)](https://www.npmjs.com/package/@junaedkhandakar/nightshift)
 [![npm downloads](https://img.shields.io/npm/dt/@junaedkhandakar/nightshift?style=flat-square&color=28a745&logo=npm)](https://www.npmjs.com/package/@junaedkhandakar/nightshift)
@@ -21,11 +21,11 @@ Queue verifiable tasks before you sleep. Wake up to isolated git branches and an
 
 </div>
 
-NightShift acts as an unattended supervisor for your existing coding agents (**Claude Code**, **Codex**, or **OpenCode**). It takes the non-interactive execution mode of these agents and wraps them in three safety boundaries:
+NightShift acts as an unattended supervisor for your existing coding agents (Claude Code, OpenAI Codex, or OpenCode). It takes their non-interactive mode and enforces three safety boundaries:
 
-1. ⚡ **Fresh Process & Context per Task** — Prevents multi-hour context rot and runaway token bloat.
-2. 🛡️ **External Verification Gate** — The agent's self-reported "Done" means nothing. Your test suite and build steps decide.
-3. 🌿 **Isolated Git Worktree per Task** — Work happens in dedicated ephemeral worktrees (`.nightshift/work/<id>`). One corrupted task cannot break another or pollute your main working tree.
+1. **Fresh Process & Context per Task** — Prevents multi-hour context rot and runaway token bloat.
+2. **External Verification Gate** — The agent's self-reported "Done" is ignored. Your actual test suite and build steps decide.
+3. **Isolated Git Worktree per Task** — Work happens in dedicated ephemeral worktrees (`.nightshift/work/<id>`). One broken task cannot corrupt another or alter your main working tree.
 
 ```
  tasks/queue/*.md
@@ -45,14 +45,15 @@ NightShift acts as an unattended supervisor for your existing coding agents (**C
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### 1. Requirements
 
-- **Node.js**: `v20.0.0` or higher
-- **Git**: `2.30+`
-- Any supported AI CLI installed and logged in (**Claude Code**, **OpenAI Codex**, or **OpenCode**)
+- **Node.js**: v20.0.0 or higher
+- **Git**: 2.30 or higher
+- Any supported AI CLI installed and logged in (Claude Code, Codex, or OpenCode)
 
+Confirm prerequisites:
 ```bash
 node --version    # must be >= v20
 git --version
@@ -68,14 +69,12 @@ npm install -g @junaedkhandakar/nightshift
 
 Verify installation:
 ```bash
-nightshift version
+nightshift --version
 ```
-
-> **Note:** If `nightshift` is not recognized, ensure your npm global bin is on your `PATH`. (Run `npm config get prefix` and add that directory to your environment variables).
 
 ---
 
-## 🚀 5-Minute Walkthrough
+## 5-Minute Setup
 
 ### Step 1: Initialize your repository
 
@@ -89,14 +88,22 @@ This scaffolds:
 ```
 ├── nightshift.config.json    # Supervisor configuration
 ├── tasks/
-│   ├── queue/                # Drop task markdown files here
+│   ├── queue/                # Place task markdown files here
 │   │   └── 000-example.md
 │   ├── done/                 # Completed tasks moved here
 │   └── failed/               # Rejected tasks moved here
 └── .nightshift/              # Logs, worktrees, and REPORT.md (auto-gitignored)
 ```
 
-### Step 2: Configure your Test Gate
+### Step 2: Check your setup with doctor
+
+Run the built-in diagnostic to confirm your environment, git state, and agent CLI are ready:
+
+```bash
+nightshift doctor
+```
+
+### Step 3: Configure your Test Gate
 
 Open `nightshift.config.json` and configure your verification commands:
 
@@ -108,12 +115,12 @@ Open `nightshift.config.json` and configure your verification commands:
 }
 ```
 
-* **`gate`**: Commands that must exit `0`. If any fail, the agent's work is rejected and quarantined.
-* **`protect`**: File patterns the agent is forbidden from editing. If the agent modifies your test suite or CI files to "pass" tests artificially, NightShift rejects it immediately.
+- **`gate`**: Commands that must exit 0. If any fail, the agent's work is rejected and quarantined.
+- **`protect`**: File patterns the agent is forbidden from editing. If the agent modifies your test suite or CI files to "pass" tests artificially, NightShift rejects it immediately.
 
-### Step 3: Write a Task
+### Step 4: Write a Task
 
-Tasks are straightforward Markdown files placed inside `tasks/queue/`. The filename becomes the task ID and git branch name.
+Tasks are simple Markdown files placed inside `tasks/queue/`. The filename becomes the task ID and git branch name.
 
 Example: `tasks/queue/fix-login-redirect.md`
 ```markdown
@@ -134,25 +141,25 @@ When a session token expires, navigating to `/dashboard` renders a blank page in
 - No new runtime dependencies.
 ```
 
-### Step 4: Dry Run (Free & Safe)
+### Step 5: Test Free with Dry Run
 
-Test your workflow pipeline without spending API tokens:
+Test your pipeline without spending API tokens or modifying real code:
 
 ```bash
 nightshift run --dry-run --once
 ```
 
-### Step 5: Start the Overnight Run
+### Step 6: Start the Overnight Run
 
 ```bash
 # Run one task interactively to observe
 nightshift run --once
 
-# Or work through the entire queue overnight
+# Or run the entire queue overnight
 nightshift run
 ```
 
-Go to sleep. When you return:
+When you return:
 ```bash
 nightshift status
 ```
@@ -160,9 +167,9 @@ Check `.nightshift/REPORT.md` for a complete audit log, diffstats, and costs.
 
 ---
 
-## 🤖 Supported Agent Harnesses
+## Supported Agent Harnesses
 
-NightShift interfaces directly with official agent CLIs in non-interactive streaming mode:
+NightShift interfaces directly with official agent CLIs:
 
 | Harness | Flag / Setting | Execution Command | Required Auth |
 | :--- | :--- | :--- | :--- |
@@ -178,7 +185,7 @@ nightshift run --harness codex
 
 ---
 
-## 📋 CLI Reference
+## CLI Reference
 
 ```
 nightshift <command> [options]
@@ -187,26 +194,28 @@ nightshift <command> [options]
 | Command | Description |
 | :--- | :--- |
 | `nightshift init [--cwd <path>]` | Scaffolds configuration and task directories in the project. |
+| `nightshift doctor` | Validates environment, Node version, Git status, and Agent CLI. |
 | `nightshift run` | Processes all tasks in `tasks/queue/` sequentially. |
 | `nightshift run --once` | Executes only the next task in queue and exits. |
 | `nightshift run --dry-run` | Executes the queue using a simulated agent (no API cost). |
 | `nightshift status` | Prints queue statistics, spend, and recent task report. |
 | `nightshift retry <id>` | Moves a task from `tasks/failed/<id>.md` back to `tasks/queue/`. |
 | `nightshift clean [--all]` | Cleans completed worktrees (add `--all` to prune branches). |
-| `nightshift version` | Displays the current installed NightShift version. |
+| `nightshift -v, --version` | Displays the current installed NightShift version. |
+| `nightshift -h, --help` | Displays help message and available options. |
 
 ### CLI Overrides
-You can override configuration flags dynamically on any run:
-* `--harness <name>` — `claude`, `codex`, `opencode`, or `dummy`
-* `--model <model>` — Target specific LLM model ID
-* `--minutes <n>` — Wall-clock timeout per task
-* `--max-turns <n>` — Maximum conversational turns
-* `--budget <usd>` — Spend ceiling (stops runner when reached)
-* `--max-tasks <n>` — Maximum number of tasks to complete
+Override configuration flags dynamically on any run:
+- `--harness <name>` — `claude`, `codex`, `opencode`, or `dummy`
+- `--model <model>` — Target specific LLM model ID
+- `--minutes <n>` — Wall-clock timeout per task
+- `--max-turns <n>` — Maximum conversational turns
+- `--budget <usd>` — Spend ceiling (stops runner when reached)
+- `--max-tasks <n>` — Maximum number of tasks to complete
 
 ---
 
-## ⚙️ Configuration Reference
+## Configuration Reference
 
 Settings live in `nightshift.config.json` at your project root:
 
@@ -239,25 +248,25 @@ Settings live in `nightshift.config.json` at your project root:
 }
 ```
 
-* **`limits.minutes`**: Wall-clock timeout enforced with process-tree termination.
-* **`limits.budgetUSD`**: Hard spending stop (supported accurately on Claude via streaming token usage).
-* **`protect`**: Glob patterns that reject tasks if modified by the agent.
-* **`notify`**: Send execution summaries to Discord, Slack, or ntfy webhooks.
+- **`limits.minutes`**: Wall-clock timeout enforced with process-tree termination.
+- **`limits.budgetUSD`**: Hard spending stop (supported accurately on Claude via streaming token usage).
+- **`protect`**: Glob patterns that reject tasks if modified by the agent.
+- **`notify`**: Send execution summaries to Discord, Slack, or ntfy webhooks.
 
 ---
 
-## 🔒 Safety & Operational Security
+## Safety & Operational Security
 
 Headless coding agents run code and execute shell commands without human intervention. Follow these best practices:
 
-* **Use dedicated or throwaway environments**: Run NightShift inside containers, a VPS, or a secondary machine. (See `docker/` for Docker configurations).
-* **Zero production secrets**: Do not expose production database credentials or high-privilege keys in the running environment.
-* **Protected paths**: Keep tests and lockfiles protected in `nightshift.config.json`.
-* **Zero automatic merge**: NightShift **never** pushes or merges into `main`. It creates reviewable branches (`nightshift/<task-id>`) for human inspection.
+- **Use dedicated or throwaway environments**: Run NightShift inside containers, a VPS, or a secondary machine. (See `docker/` for Docker configurations).
+- **Zero production secrets**: Do not expose production database credentials or high-privilege keys in the running environment.
+- **Protected paths**: Keep tests and lockfiles protected in `nightshift.config.json`.
+- **Zero automatic merge**: NightShift **never** pushes or merges into `main`. It creates reviewable branches (`nightshift/<task-id>`) for human inspection.
 
 ---
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 | Symptom | Probable Cause | Recommended Fix |
 | :--- | :--- | :--- |
@@ -270,7 +279,7 @@ Headless coding agents run code and execute shell commands without human interve
 
 ---
 
-## 📦 Distribution & Development
+## Distribution & Development
 
 ### Working from Source
 
@@ -293,6 +302,6 @@ git push --follow-tags
 
 ---
 
-## 📄 License
+## License
 
 MIT © [Junaed Khandakar](https://github.com/junaedkhandakar)
