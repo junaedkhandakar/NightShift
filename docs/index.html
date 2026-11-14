@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NightShift — Autonomous Overnight Supervisor for Headless Coding Agents</title>
+  <meta name="description" content="Supervise Claude Code, OpenAI Codex, and OpenCode while you sleep. Fresh process per task, strict test gates, and isolated git worktrees.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌙</text></svg>">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"Fira Code"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+            },
+            dark: {
+              950: '#07090e',
+              900: '#0c1017',
+              850: '#121824',
+              800: '#1a2233',
+              700: '#26334a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0c1017;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #26334a;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #374763;
+    }
+    .glow-green {
+      box-shadow: 0 0 40px -10px rgba(74, 222, 128, 0.25);
+    }
+    .grid-pattern {
+      background-size: 32px 32px;
+      background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    }
+  </style>
+</head>
+
+<body class="bg-dark-950 text-slate-300 font-sans antialiased selection:bg-brand-500 selection:text-black min-h-screen relative overflow-x-hidden">
+
+  <!-- Background Ambient Glow -->
+  <div class="fixed inset-0 grid-pattern pointer-events-none z-0"></div>
+  <div class="fixed top-[-150px] left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-brand-500/10 rounded-full blur-[140px] pointer-events-none z-0"></div>
+
+  <!-- ======================== NAVIGATION ======================== -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-dark-950/80 border-b border-dark-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-3 group">
+        <div class="w-9 h-9 rounded-lg bg-dark-850 border border-dark-700 flex items-center justify-center text-brand-400 font-mono font-bold text-lg shadow-sm group-hover:border-brand-500/50 transition">
+          NS
+        </div>
+        <span class="text-white font-bold tracking-tight text-lg">NightShift</span>
+        <span class="text-xs font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">v0.1.3</span>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-400">
+        <a href="#quickstart" class="hover:text-white transition">Quick Start</a>
+        <a href="#workflow" class="hover:text-white transition">How It Works</a>
+        <a href="#harnesses" class="hover:text-white transition">Agents</a>
+        <a href="#commands" class="hover:text-white transition">CLI Reference</a>
+        <a href="#generator" class="hover:text-white transition">Task Playground</a>
+        <a href="#faq" class="hover:text-white transition">FAQ</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <a href="https://github.com/junaedkhandakar/NightShift" target="_blank" rel="noopener noreferrer" 
+           class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-dark-850 hover:bg-dark-800 border border-dark-700 rounded-lg transition">
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+        <a href="https://www.npmjs.com/package/@junaedkhandakar/nightshift" target="_blank" rel="noopener noreferrer"
+           class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-brand-400 hover:bg-brand-500 rounded-lg transition font-mono">
+          npm v0.1.3
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================== HERO SECTION ======================== -->
+  <section class="relative z-10 pt-20 pb-16 md:pt-28 md:pb-24">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      
+      <!-- Announcement Chip -->
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-850 border border-dark-700 text-xs text-slate-300 mb-8 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
+        <span>Version 0.1.3 Released: Includes <code>nightshift doctor</code> healthcheck</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.1] mb-6">
+        Overnight supervisor for <br class="hidden sm:inline" />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 via-emerald-300 to-teal-400">headless coding agents</span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="max-w-2xl mx-auto text-lg sm:text-xl text-slate-400 mb-10 leading-relaxed">
+        Queue small, verifiable tasks before going to bed. Wake up to one isolated git branch per task and a verified test report.
+      </p>
+
+      <!-- One-click Install Terminal Widget -->
+      <div class="max-w-xl mx-auto mb-10">
+        <div class="bg-dark-900 border border-dark-700 rounded-xl p-2.5 flex items-center justify-between shadow-2xl glow-green">
+          <div class="flex items-center gap-3 overflow-x-auto px-2 py-1 text-sm font-mono text-slate-200">
+            <span class="text-brand-400 select-none">$</span>
+            <span id="installCmd">npm install -g @junaedkhandakar/nightshift</span>
+          </div>
+          <button onclick="copyCommand('npm install -g @junaedkhandakar/nightshift', this)" 
+                  class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-dark-800 hover:bg-dark-700 text-slate-200 hover:text-white rounded-lg border border-dark-700 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+        <div class="flex items-center justify-center gap-6 mt-3 text-xs text-slate-400 font-mono">
+          <span>Node.js &gt;= 20</span>
+          <span>&bull;</span>
+          <span>Git &gt;= 2.30</span>
+          <span>&bull;</span>
+          <span>Claude &bull; Codex &bull; OpenCode</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center justify-center gap-4">
+        <a href="#quickstart" class="px-6 py-3 rounded-lg bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-sm transition shadow-lg shadow-brand-500/20">
+          Start in 5 Minutes
+        </a>
+        <a href="#workflow" class="px-6 py-3 rounded-lg bg-dark-850 hover:bg-dark-800 border border-dark-700 text-white font-medium text-sm transition">
+          See How It Works
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== THREE SAFETY PILLARS ======================== -->
+  <section class="py-16 bg-dark-900/50 border-y border-dark-800 relative z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">Unattended Execution Safety</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">Why NightShift makes unattended work safe</h3>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Pillar 1 -->
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-6 hover:border-dark-700 transition">
+          <div class="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 font-mono font-bold mb-4">
+            01
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Fresh Process per Task</h4>
+          <p class="text-sm text-slate-400 leading-relaxed mb-4">
+            AI agents running in single long sessions suffer severe context rot and exponentially growing token costs. NightShift spawns a completely fresh sub-process for every task.
+          </p>
+          <div class="text-xs font-mono text-emerald-400 bg-dark-900 p-2 rounded border border-dark-800">
+            No 8-hour context decay &bull; Strict turn caps
+          </div>
+        </div>
+
+        <!-- Pillar 2 -->
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-6 hover:border-dark-700 transition">
+          <div class="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 font-mono font-bold mb-4">
+            02
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">External Test Gate</h4>
+          <p class="text-sm text-slate-400 leading-relaxed mb-4">
+            The agent self-reporting "I finished the task!" counts for nothing. NightShift runs your real test gate (<code>npm test</code>, <code>cargo test</code>). If tests fail, the code is rejected.
+          </p>
+          <div class="text-xs font-mono text-emerald-400 bg-dark-900 p-2 rounded border border-dark-800">
+            Exit 0 required &bull; Protected path guards
+          </div>
+        </div>
+
+        <!-- Pillar 3 -->
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-6 hover:border-dark-700 transition">
+          <div class="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 font-mono font-bold mb-4">
+            03
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Ephemeral Git Worktrees</h4>
+          <p class="text-sm text-slate-400 leading-relaxed mb-4">
+            Every task is given an isolated worktree under <code>.nightshift/work/&lt;id&gt;</code>. One bad task cannot poison the next, and nothing is ever merged into main automatically.
+          </p>
+          <div class="text-xs font-mono text-emerald-400 bg-dark-900 p-2 rounded border border-dark-800">
+            Clean reviewable branches &bull; Zero main tree pollution
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== ARCHITECTURE LIFECYCLE ======================== -->
+  <section id="workflow" class="py-20 relative z-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">Execution Pipeline</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">How a task travels through NightShift</h3>
+      </div>
+
+      <!-- Pipeline Visual Flow -->
+      <div class="bg-dark-900 border border-dark-800 rounded-2xl p-6 sm:p-8 font-mono text-xs sm:text-sm">
+        <div class="space-y-4">
+          
+          <div class="flex items-start gap-4 p-4 rounded-xl bg-dark-850 border border-dark-800">
+            <span class="w-7 h-7 rounded bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold flex-shrink-0">1</span>
+            <div>
+              <div class="font-bold text-white text-base font-sans">Atomic Queue Lock</div>
+              <div class="text-slate-400 mt-1 font-mono text-xs">
+                <code>tasks/queue/01-auth.md</code> is atomically moved to <code>tasks/queue/.running/</code> so multiple runners or crashes cannot process duplicate tasks.
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-4 p-4 rounded-xl bg-dark-850 border border-dark-800">
+            <span class="w-7 h-7 rounded bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold flex-shrink-0">2</span>
+            <div>
+              <div class="font-bold text-white text-base font-sans">Clean Worktree Provisioning</div>
+              <div class="text-slate-400 mt-1 font-mono text-xs">
+                Cuts a fresh git worktree at <code>.nightshift/work/01-auth</code> on branch <code>nightshift/01-auth</code> pinned to the base commit.
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-4 p-4 rounded-xl bg-dark-850 border border-dark-800">
+            <span class="w-7 h-7 rounded bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold flex-shrink-0">3</span>
+            <div>
+              <div class="font-bold text-white text-base font-sans">Agent Invocation via Pointer</div>
+              <div class="text-slate-400 mt-1 font-mono text-xs">
+                Instructions write to <code>.nightshift/prompt.md</code>. Agent runs non-interactively. Output streams directly to <code>.nightshift/logs/01-auth.jsonl</code>.
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-4 p-4 rounded-xl bg-dark-850 border border-dark-800">
+            <span class="w-7 h-7 rounded bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold flex-shrink-0">4</span>
+            <div>
+              <div class="font-bold text-white text-base font-sans">Protected Path Audit & Test Gate</div>
+              <div class="text-slate-400 mt-1 font-mono text-xs">
+                NightShift checks if the agent touched test definitions or CI locks. If clean, it runs <code>gate: ["npm test"]</code>.
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div class="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30">
+              <span class="text-emerald-400 font-bold font-sans block text-sm">Pass: Commit & Report</span>
+              <p class="text-slate-400 text-xs mt-1">Commits branch <code>nightshift/01-auth</code>, moves to <code>tasks/done/</code>, and appends diffstat to <code>.nightshift/REPORT.md</code>.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30">
+              <span class="text-rose-400 font-bold font-sans block text-sm">Fail: Quarantine & BLOCKED.md</span>
+              <p class="text-slate-400 text-xs mt-1">Reverts changes, moves task to <code>tasks/failed/</code>, logs failure reason, and captures agent blocker report.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== STEP-BY-STEP QUICKSTART ======================== -->
+  <section id="quickstart" class="py-20 bg-dark-900/60 border-t border-dark-800 relative z-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">Quick Start Guide</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">From zero to overnight running in 5 minutes</h3>
+      </div>
+
+      <!-- Step Cards -->
+      <div class="space-y-6">
+
+        <!-- Step 1 -->
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 font-mono text-xs">Step 1</span>
+              Scaffold your repo
+            </span>
+            <button onclick="copySnippet('cmd-init', this)" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono">
+              <span>Copy</span>
+            </button>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">Run inside your project's root git repository to generate the configuration and task queue folders.</p>
+          <pre id="cmd-init" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-brand-400 overflow-x-auto">nightshift init</pre>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 font-mono text-xs">Step 2</span>
+              Verify environment with doctor
+            </span>
+            <button onclick="copySnippet('cmd-doc', this)" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono">
+              <span>Copy</span>
+            </button>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">Diagnoses Node.js version, Git repository status, and confirms your AI agent CLI is available in PATH.</p>
+          <pre id="cmd-doc" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-brand-400 overflow-x-auto">nightshift doctor</pre>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 font-mono text-xs">Step 3</span>
+              Set up your Test Gate
+            </span>
+            <button onclick="copySnippet('cfg-gate', this)" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono">
+              <span>Copy</span>
+            </button>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">Open <code>nightshift.config.json</code> and define the check commands that the agent's work must pass.</p>
+          <pre id="cfg-gate" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-slate-300 overflow-x-auto">{
+  "harness": "claude",
+  "gate": ["npm test", "npm run build"],
+  "protect": ["tests/**", "*.test.*", ".github/**", "package-lock.json"]
+}</pre>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 font-mono text-xs">Step 4</span>
+              Write a task in tasks/queue/
+            </span>
+            <button onclick="copySnippet('task-sample', this)" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono">
+              <span>Copy</span>
+            </button>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">Create <code>tasks/queue/001-fix-auth.md</code> with clear acceptance criteria:</p>
+          <pre id="task-sample" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-slate-300 overflow-x-auto">---
+minutes: 20
+turns: 30
+gate: npm test -- tests/auth
+---
+
+# Fix Expired Session Redirect
+When the auth token expires, redirect `/dashboard` to `/login?expired=true`.
+Do not modify any test definitions or add dependencies.</pre>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 font-mono text-xs">Step 5</span>
+              Test Free (Dry Run) & Start Overnight
+            </span>
+            <button onclick="copySnippet('cmd-run', this)" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono">
+              <span>Copy</span>
+            </button>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">Run a simulated pass for free, then launch the real unattended run:</p>
+          <pre id="cmd-run" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-brand-400 overflow-x-auto"># 1. Test plumbing with fake agent (zero API cost)
+nightshift run --dry-run --once
+
+# 2. Run the overnight queue for real
+nightshift run</pre>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== SUPPORTED AGENTS ======================== -->
+  <section id="harnesses" class="py-20 relative z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">Supported Agents</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">Works with your favorite coding assistant</h3>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="bg-dark-900 border border-dark-800 rounded-xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="font-bold text-white text-lg">Claude Code</span>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">Default</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+              Native stream-json output parsing with exact dollar budget tracking.
+            </p>
+            <div class="bg-dark-950 p-2.5 rounded font-mono text-xs text-slate-300 border border-dark-800 mb-4">
+              --harness claude
+            </div>
+          </div>
+          <div class="text-[11px] text-slate-500 font-mono">
+            Needs: claude CLI logged in or ANTHROPIC_API_KEY
+          </div>
+        </div>
+
+        <div class="bg-dark-900 border border-dark-800 rounded-xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="font-bold text-white text-lg">OpenAI Codex</span>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">Supported</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+              Executes with full auto json flags directly in the isolated worktree.
+            </p>
+            <div class="bg-dark-950 p-2.5 rounded font-mono text-xs text-slate-300 border border-dark-800 mb-4">
+              --harness codex
+            </div>
+          </div>
+          <div class="text-[11px] text-slate-500 font-mono">
+            Needs: codex CLI logged in
+          </div>
+        </div>
+
+        <div class="bg-dark-900 border border-dark-800 rounded-xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="font-bold text-white text-lg">OpenCode</span>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">Supported</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+              Runs OpenCode non-interactively with auto-approved permissions.
+            </p>
+            <div class="bg-dark-950 p-2.5 rounded font-mono text-xs text-slate-300 border border-dark-800 mb-4">
+              --harness opencode
+            </div>
+          </div>
+          <div class="text-[11px] text-slate-500 font-mono">
+            Needs: opencode CLI installed
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== INTERACTIVE TASK GENERATOR ======================== -->
+  <section id="generator" class="py-20 bg-dark-900/60 border-y border-dark-800 relative z-10">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">Interactive Generator</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">Generate a Task File</h3>
+        <p class="text-xs text-slate-400 mt-2">Fill in your task details to generate a formatted markdown file ready to place into <code>tasks/queue/</code>.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-dark-850 border border-dark-800 rounded-2xl p-6 sm:p-8">
+        
+        <!-- Input Form -->
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Task Filename / ID</label>
+            <input type="text" id="genId" value="add-health-check" oninput="updateTaskGen()" 
+                   class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Time Limit (mins)</label>
+              <input type="number" id="genMins" value="20" oninput="updateTaskGen()" 
+                     class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Max Turns</label>
+              <input type="number" id="genTurns" value="30" oninput="updateTaskGen()" 
+                     class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Specific Gate Command</label>
+            <input type="text" id="genGate" value="npm test" oninput="updateTaskGen()" 
+                   class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Task Instructions</label>
+            <textarea id="genDesc" rows="4" oninput="updateTaskGen()" 
+                      class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-sans text-white focus:outline-none focus:border-brand-500">Add a `GET /health` endpoint that returns status 200 and {"status":"ok"}. Follow existing controller patterns.</textarea>
+          </div>
+        </div>
+
+        <!-- Live Preview Output -->
+        <div class="flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono text-slate-400" id="previewFilename">tasks/queue/add-health-check.md</span>
+              <button onclick="copyGeneratedTask(this)" class="text-xs text-brand-400 hover:text-brand-300 font-mono">
+                Copy File
+              </button>
+            </div>
+            <pre id="genOutput" class="bg-dark-950 border border-dark-700 rounded-xl p-4 text-xs font-mono text-slate-300 h-64 overflow-y-auto whitespace-pre-wrap"></pre>
+          </div>
+          <div class="text-[11px] text-slate-500 font-mono mt-3">
+            Place this in <code>tasks/queue/</code> before running NightShift.
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== COMMAND REFERENCE ======================== -->
+  <section id="commands" class="py-20 relative z-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">CLI Handbook</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">Command & Flag Reference</h3>
+      </div>
+
+      <div class="overflow-x-auto bg-dark-900 border border-dark-800 rounded-2xl">
+        <table class="w-full text-left text-xs sm:text-sm">
+          <thead class="bg-dark-850 border-b border-dark-800 text-slate-300 font-mono">
+            <tr>
+              <th class="py-3.5 px-4 font-semibold">Command</th>
+              <th class="py-3.5 px-4 font-semibold">Purpose</th>
+              <th class="py-3.5 px-4 font-semibold">Example</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-dark-800 text-slate-400 font-mono text-xs">
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift init</td>
+              <td class="py-3.5 px-4">Scaffolds <code>nightshift.config.json</code> and queue directories</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift init</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift doctor</td>
+              <td class="py-3.5 px-4">Diagnoses Node, Git, config, and agent CLI readiness</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift doctor</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift run</td>
+              <td class="py-3.5 px-4">Executes all tasks in <code>tasks/queue/</code> sequentially</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift run</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift run --once</td>
+              <td class="py-3.5 px-4">Processes only the next single task then exits</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift run --once</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift run --dry-run</td>
+              <td class="py-3.5 px-4">Runs the pipeline using dummy agent (zero API spend)</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift run --dry-run --once</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift status</td>
+              <td class="py-3.5 px-4">Prints queue counts, spend, and tail of <code>REPORT.md</code></td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift status</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift retry &lt;id&gt;</td>
+              <td class="py-3.5 px-4">Moves failed task back into the active queue</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift retry 001-fix-auth</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift clean [--all]</td>
+              <td class="py-3.5 px-4">Prunes finished worktrees (optionally removes branches)</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift clean --all</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift -v, --version</td>
+              <td class="py-3.5 px-4">Prints installed CLI version</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift -v</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== FAQ ACCORDION ======================== -->
+  <section id="faq" class="py-20 bg-dark-900/60 border-t border-dark-800 relative z-10">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">FAQ & Troubleshooting</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">Frequently Asked Questions</h3>
+      </div>
+
+      <div class="space-y-4">
+        
+        <details class="group bg-dark-850 border border-dark-800 rounded-xl p-5 [&_summary::-webkit-details-marker]:hidden">
+          <summary class="flex items-center justify-between cursor-pointer font-bold text-white text-sm">
+            <span>What happens if the agent fails or enters an infinite loop?</span>
+            <span class="text-brand-400 transition group-open:rotate-180">&darr;</span>
+          </summary>
+          <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+            NightShift enforces strict process-tree wall-clock timeouts via <code>limits.minutes</code> (default 45 mins). If a task exceeds its allotted minutes or conversational turns, NightShift terminates the process tree, records the timeout in <code>REPORT.md</code>, moves the task to <code>tasks/failed/</code>, and safely moves to the next task.
+          </p>
+        </details>
+
+        <details class="group bg-dark-850 border border-dark-800 rounded-xl p-5 [&_summary::-webkit-details-marker]:hidden">
+          <summary class="flex items-center justify-between cursor-pointer font-bold text-white text-sm">
+            <span>Does NightShift push directly or merge into my main branch?</span>
+            <span class="text-brand-400 transition group-open:rotate-180">&darr;</span>
+          </summary>
+          <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+            <strong>Never.</strong> NightShift never pushes to remote or merges into <code>main</code> automatically. Every successful task produces its own isolated git branch (<code>nightshift/&lt;task-id&gt;</code>). You inspect the branch and diff in the morning and merge only what you trust.
+          </p>
+        </details>
+
+        <details class="group bg-dark-850 border border-dark-800 rounded-xl p-5 [&_summary::-webkit-details-marker]:hidden">
+          <summary class="flex items-center justify-between cursor-pointer font-bold text-white text-sm">
+            <span>What are protected paths?</span>
+            <span class="text-brand-400 transition group-open:rotate-180">&darr;</span>
+          </summary>
+          <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+            By default, <code>tests/**</code>, <code>*.test.*</code>, <code>.github/**</code>, and <code>package-lock.json</code> are protected. If a lazy agent attempts to pass a test gate by deleting test assertions or commenting out tests, NightShift detects the modification, rejects the task immediately, and quarantines it.
+          </p>
+        </details>
+
+        <details class="group bg-dark-850 border border-dark-800 rounded-xl p-5 [&_summary::-webkit-details-marker]:hidden">
+          <summary class="flex items-center justify-between cursor-pointer font-bold text-white text-sm">
+            <span>Where should I run NightShift overnight?</span>
+            <span class="text-brand-400 transition group-open:rotate-180">&darr;</span>
+          </summary>
+          <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+            Since laptops sleep when the lid is closed, run NightShift on an always-on home server, a secondary mini-PC, a cloud VPS inside tmux (<code>tmux new -s night</code>), or via GitHub Actions (see <code>templates/github-action.yml</code>).
+          </p>
+        </details>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== FOOTER ======================== -->
+  <footer class="py-12 border-t border-dark-800 bg-dark-950 text-xs text-slate-500 relative z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+      
+      <div class="flex items-center gap-3">
+        <span class="text-white font-bold text-sm">NightShift</span>
+        <span>&bull;</span>
+        <span>MIT License &bull; &copy; 2026 Junaed Khandakar</span>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <a href="https://github.com/junaedkhandakar/NightShift" class="hover:text-slate-300 transition">GitHub</a>
+        <a href="https://www.npmjs.com/package/@junaedkhandakar/nightshift" class="hover:text-slate-300 transition">npm Registry</a>
+        <a href="https://junaedkhandakar.me" class="hover:text-brand-400 transition">junaedkhandakar.me</a>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ======================== SCRIPTS ======================== -->
+  <script>
+    // Copy button helper
+    function copyCommand(text, btn) {
+      navigator.clipboard.writeText(text);
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<span class="text-brand-400 font-bold">Copied!</span>`;
+      setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+    }
+
+    function copySnippet(elementId, btn) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text);
+      const original = btn.innerText;
+      btn.innerText = "Copied!";
+      setTimeout(() => { btn.innerText = original; }, 2000);
+    }
+
+    // Interactive Task Generator logic
+    function updateTaskGen() {
+      const id = document.getElementById('genId').value.trim() || 'my-task';
+      const mins = document.getElementById('genMins').value || '20';
+      const turns = document.getElementById('genTurns').value || '30';
+      const gate = document.getElementById('genGate').value.trim() || 'npm test';
+      const desc = document.getElementById('genDesc').value.trim();
+
+      document.getElementById('previewFilename').innerText = `tasks/queue/${id}.md`;
+
+      const formatted = `---
+minutes: ${mins}
+turns: ${turns}
+gate: ${gate}
+---
+
+# ${id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+
+${desc}
+
+### Acceptance Criteria:
+- Follow existing patterns
+- Gate command \`${gate}\` must pass
+- Do not modify test definitions or add unapproved packages`;
+
+      document.getElementById('genOutput').innerText = formatted;
+    }
+
+    function copyGeneratedTask(btn) {
+      const text = document.getElementById('genOutput').innerText;
+      navigator.clipboard.writeText(text);
+      const original = btn.innerText;
+      btn.innerText = "Copied!";
+      setTimeout(() => { btn.innerText = original; }, 2000);
+    }
+
+    // Initialize generator
+    document.addEventListener('DOMContentLoaded', () => {
+      updateTaskGen();
+    });
+  </script>
+
+</body>
+</html>
