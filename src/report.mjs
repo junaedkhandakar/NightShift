@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fmtDuration, fmtUSD, nowISO, oneLine } from "./util.mjs";
 
@@ -37,8 +37,48 @@ export function appendTask(file, r) {
   appendFileSync(file, lines.join("\n") + "\n");
 }
 
-export async function notify(cfg, text) {
-  const webhook = cfg.notify?.webhook;
+/**
+ * Read the report back into structured entries, so `nightshift list` can show
+ * why a task failed without asking the user to open the markdown file.
+ */
+export function parseReport(file) {
+  if (!existsSync(file)) return [];
+
+  const entries = [];
+  let current = null;
+
+  for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+    const head = line.match(/^## \[(ok|FAIL)\] (.+?) - (.*)$/);
+    if (head) {
+      current = {
+        id: head[2].trim(),
+        status: head[1] === "ok" ? "done" : "failed",
+        bits: head[3].trim(),
+        reason: null,
+        gate: null,
+        branch: null,
+      };
+      entries.push(current);
+      continue;
+    }
+
+    if (!current) continue;
+
+    const why = line.match(/^- \*\*(why|gate):\*\* (.*)$/);
+    if (why) {
+      if (why[1] === "why") current.reason = why[2].trim();
+      else current.gate = why[2].trim();
+      continue;
+    }
+
+    const branch = line.match(/branch `(.+?)`/);
+    if (branch) current.branch = branch[1];
+  }
+
+  return entries;
+}
+
+export async function notify(cfg, text) {  const webhook = cfg.notify?.webhook;
   if (!webhook) return;
 
   const format = cfg.notify?.format ?? "text";

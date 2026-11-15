@@ -1,8 +1,18 @@
-// TEMPLATE - copy to .github/workflows/nightshift.yml in your project.
-// Runs the whole queue once a night on a fresh runner and opens a PR.
-//
-// Not wired up yet: the agent CLI install, the auth secret, and the path to
-// nightshift. Adjust the TODOs before enabling the schedule.
+# NightShift overnight runner.
+#
+# Copy this file to .github/workflows/nightshift.yml in YOUR project, then:
+#
+#   1. Install one agent CLI and give the runner a way to authenticate:
+#        ANTHROPIC_API_KEY  (Claude Code)
+#        OPENAI_API_KEY     (Codex)
+#      Add it under Settings -> Secrets and variables -> Actions.
+#   2. Make sure your tasks are committed to the default branch under
+#      tasks/queue/. The runner picks up whatever is there at 02:00 UTC.
+#   3. Optionally enable "pull requests: write" so finished tasks arrive as
+#      reviewable PRs instead of only local branches.
+#
+# The runner checks out the repo, runs the whole queue once, and leaves the
+# report in the job summary. Your laptop can stay closed.
 
 name: nightshift
 
@@ -15,39 +25,61 @@ permissions:
   contents: write
   pull-requests: write
 
+# One night at a time. Do not cancel a run that is already producing commits.
+concurrency:
+  group: nightshift-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install harness
-        run: npm install -g @anthropic-ai/claude-code # TODO: or codex / opencode
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Install nightshift
+        run: npm install -g @junaedkhandakar/nightshift
+
+      - name: Install agent CLI
+        # Swap for the CLI you actually use.
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Verify environment
+        run: nightshift doctor
+        continue-on-error: true
 
       - name: Run nightshift
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          git config user.name nightshift
-          git config user.email nightshift@localhost
-          node ../nightshift/src/cli.mjs run --cwd "$PWD" || true
-        # TODO: checkout this repo next to your project, e.g.
-        #   git clone https://github.com/you/nightshift ../nightshift
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          nightshift run --create-pr
 
-      - name: Open PR
-        uses: peter-evans/create-pull-request@v6
+      - name: Summarise the night
+        if: always()
+        run: |
+          {
+            echo "## NightShift report"
+            echo
+            if [ -f .nightshift/REPORT.md ]; then
+              cat .nightshift/REPORT.md
+            else
+              echo "No report was produced."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          branch: nightshift/autopilot
-          title: "nightshift: overnight tasks"
-          commit-message: "nightshift: overnight run"
-          body-path: .nightshift/REPORT.md
-          delete-branch: true
+          name: nightshift-report
+          path: .nightshift/REPORT.md
+          if-no-files-found: ignore

@@ -3,12 +3,24 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renam
 import path from "node:path";
 
 import { defaultConfigFile, loadConfig } from "./config.mjs";
-import { paths as makePaths } from "./queue.mjs";
+import { listTasks, paths as makePaths } from "./queue.mjs";
+import { parseReport } from "./report.mjs";
 import { runSession } from "./runner.mjs";
 import { HARNESSES } from "./harness.mjs";
-import { fmtUSD } from "./util.mjs";
+import { buildPullRequestBody, createPullRequest, defaultBranch } from "./pr.mjs";
+import { fmtUSD, slug } from "./util.mjs";
+import { bold, cyan, gray, green, mark, red, renderTable, section, yellow } from "./term.mjs";
 
-const BOOLEAN = new Set(["once", "dryRun", "force", "help", "version", "all"]);
+const BOOLEAN = new Set([
+  "once",
+  "dryRun",
+  "force",
+  "help",
+  "version",
+  "all",
+  "createPr",
+  "draft",
+]);
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -48,6 +60,11 @@ function applyOverrides(cfg, flags) {
   if (flags.maxTurns) cfg.limits.maxTurns = Number(flags.maxTurns);
   if (flags.budget) cfg.limits.budgetUSD = Number(flags.budget);
   if (flags.maxTasks) cfg.limits.maxTasks = Number(flags.maxTasks);
+  if (flags.createPr) {
+    cfg.pullRequests = { ...(cfg.pullRequests ?? {}), enabled: true };
+    if (flags.draft) cfg.pullRequests.draft = true;
+    if (typeof flags.base === "string") cfg.pullRequests.base = flags.base;
+  }
   return cfg;
 }
 
@@ -56,10 +73,13 @@ function help() {
 
 Usage:
   nightshift init [--cwd DIR]              scaffold a target repo
+  nightshift add "<task title>"            create a task file in the queue
+  nightshift list                         show queued, failed, and done tasks
   nightshift run [--once] [--dry-run]      work through tasks/queue/*.md
   nightshift doctor                        check system and agent CLI readiness
   nightshift status                        queue counts + recent report
   nightshift retry <id>                    move tasks/failed/<id>.md back to queue
+  nightshift pr <branch>                  open a pull request for a finished branch
   nightshift clean [--all]                 remove worktrees, optionally branches
 
 Flags:
@@ -72,6 +92,9 @@ Flags:
   --max-tasks N      stop after N tasks                 (default: 0 = whole queue)
   --dry-run          use the built-in dummy harness, spend nothing
   --once             process a single task then exit
+  --create-pr        push each finished branch and open a pull request
+  --draft            open pull requests as drafts
+  --base BRANCH      pull request base branch            (default: repo default)
   -v, --version      print version
   -h, --help         print help
 `);
@@ -91,6 +114,9 @@ async function main() {
   if (command === "doctor") return doctor(cwd);
   if (command === "init") return init(cwd);
   if (command === "status") return status(cwd);
+  if (command === "list" || command === "queue") return list(cwd);
+  if (command === "add") return add(cwd, flags);
+  if (command === "pr") return pullRequest(cwd, flags);
 
   if (command === "retry") {
     const id = flags._[0];
@@ -186,10 +212,161 @@ function init(cwd) {
 Next:
   1. Edit nightshift.config.json — set "gate" to your real check command.
   2. Write small, verifiable tasks in tasks/queue/ (one file per task).
+     Quick way: nightshift add "fix the login redirect"
   3. Prove the plumbing:  nightshift run --dry-run --once
   4. Run for real:        nightshift run --once
   5. Read .nightshift/REPORT.md in the morning.
 `);
+}
+
+/** Create a task file in the queue, ready to be edited. */
+function add(cwd, flags) {
+  const cfg = loadConfig(cwd);
+  const P = makePaths(cwd, cfg);
+  const title = flags._.join(" ").trim();
+
+  if (!title) throw new Error('usage: nightshift add "<task title>" [--minutes N] [--body TEXT]');
+
+  const id = slug(title);
+  const file = path.join(P.queue, `${id}.md`);
+  if (existsSync(file)) throw new Error(`task "${id}" is already in the queue`);
+
+  mkdirSync(P.queue, { recursive: true });
+
+  const minutes = flags.minutes ?? cfg.limits.minutes ?? 45;
+  const turns = flags.maxTurns ?? cfg.limits.maxTurns ?? 60;
+  const gate = flags.gate ?? (cfg.gate.length === 1 ? cfg.gate[0] : null);
+  const body = flags.body ? String(flags.body).trim() : "";
+
+  const lines = ["---", `minutes: ${minutes}`, `turns: ${turns}`];
+  if (flags.model) lines.push(`model: ${flags.model}`);
+  if (gate) lines.push(`gate: ${gate}`);
+  lines.push("---", "", `# ${title}`, "");
+
+  if (body) {
+    lines.push(body, "");
+  } else {
+    lines.push(
+      "Describe the outcome and the acceptance criteria.",
+      "Be specific: one outcome, a clear definition of done.",
+      "",
+      "### Acceptance Criteria:",
+      "- ",
+      "",
+    );
+  }
+
+  writeFileSync(file, lines.join("\n"));
+  console.log(`${green(mark.ok)} wrote ${file}`);
+  console.log(
+    gray(`  next: edit it, then run "nightshift run --dry-run --once" to prove the plumbing.`),
+  );
+}
+
+/** Show queued, failed, and finished tasks in readable tables. */
+function list(cwd) {
+  const cfg = loadConfig(cwd);
+  const P = makePaths(cwd, cfg);
+
+  const queued = listTasks(P.queue);
+  const failed = listTasks(P.failed);
+  const done = listTasks(P.done);
+  const entries = parseReport(P.report);
+
+  const latest = (id) => entries.filter((e) => e.id === id).pop() ?? null;
+  const short = (text, max = 72) => {
+    const value = String(text ?? "").replace(/\s+/g, " ").trim();
+    return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+  };
+
+  if (!queued.length && !failed.length && !done.length) {
+    console.log("Nothing queued yet.");
+    console.log(gray('  create one with: nightshift add "fix the login redirect"'));
+    return;
+  }
+
+  if (queued.length) {
+    section(`queue (${queued.length})`);
+    console.log(
+      renderTable(
+        [{ title: "id" }, { title: "minutes" }, { title: "turns" }, { title: "gate" }, { title: "title" }],
+        queued.map((t) => [
+          t.id,
+          t.meta.minutes ?? "-",
+          t.meta.turns ?? "-",
+          t.meta.gate ?? "-",
+          t.title ?? "-",
+        ]),
+      ),
+    );
+  }
+
+  if (failed.length) {
+    section(`failed (${failed.length})`);
+    console.log(
+      renderTable(
+        [{ title: "id" }, { title: "why" }],
+        failed.map((t) => {
+          const entry = latest(t.id);
+          return [t.id, short(entry?.reason ?? "unknown")];
+        }),
+      ),
+    );
+    console.log(gray("  retry with: nightshift retry <id>"));
+  }
+
+  if (done.length) {
+    section(`done (${done.length})`);
+    console.log(
+      renderTable(
+        [{ title: "id" }, { title: "branch" }, { title: "gate" }],
+        done.map((t) => {
+          const entry = latest(t.id);
+          return [t.id, entry?.branch ?? "-", entry?.gate ?? "-"];
+        }),
+      ),
+    );
+  }
+}
+
+/** Open a pull request for a branch that already has a finished commit. */
+function pullRequest(cwd, flags) {
+  const cfg = applyOverrides(loadConfig(cwd), flags);
+  const branch = flags._[0];
+  if (!branch) throw new Error("usage: nightshift pr <branch>");
+
+  const base = flags.base ?? cfg.pullRequests?.base ?? defaultBranch(cwd);
+  const entries = parseReport(path.join(cwd, cfg.paths.report));
+  const entry = entries.filter((e) => e.branch === branch).pop() ?? null;
+  const id = entry?.id ?? branch.replace(/^.*\//, "");
+
+  const body = buildPullRequestBody({
+    id,
+    task: entry ? `Task ${id} was processed by NightShift.` : "",
+    stat: "",
+    gate: entry?.gate ?? "",
+    costUSD: 0,
+    durationMs: 0,
+    harness: null,
+  });
+
+  const result = createPullRequest({
+    cwd,
+    branch,
+    base,
+    title: `nightshift: ${id}`,
+    body,
+    draft: Boolean(flags.draft ?? cfg.pullRequests?.draft),
+    remote: cfg.pullRequests?.remote ?? "origin",
+  });
+
+  if (result.ok) {
+    console.log(`${green(mark.ok)} pull request opened: ${result.url}`);
+    return;
+  }
+
+  console.log(`${yellow(mark.warn)} pull request not created: ${result.reason}`);
+  if (result.url) console.log(`  open it manually: ${result.url}`);
 }
 
 function status(cwd) {
@@ -209,11 +386,12 @@ function status(cwd) {
     // no state yet
   }
 
-  console.log(`queue:  ${count(P.queue)}`);
-  console.log(`done:   ${count(P.done)}`);
-  console.log(`failed: ${count(P.failed)}`);
-  console.log(`runs:   ${runs} (${fmtUSD(spent)} total)`);
-  console.log(`report: ${P.report}`);
+  console.log(`${bold("queue:")}  ${cyan(count(P.queue))}`);
+  console.log(`${bold("done:")}   ${green(count(P.done))}`);
+  console.log(`${bold("failed:")} ${count(P.failed) ? red(count(P.failed)) : count(P.failed)}`);
+  console.log(`${bold("runs:")}   ${runs} (${fmtUSD(spent)} total)`);
+  console.log(`${bold("report:")} ${P.report}`);
+  console.log(gray('  details: nightshift list'));
 
   if (existsSync(P.report)) {
     const tail = readFileSync(P.report, "utf8").split(/\r?\n/).slice(-40).join("\n");

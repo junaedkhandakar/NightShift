@@ -84,13 +84,15 @@
           NS
         </div>
         <span class="text-white font-bold tracking-tight text-lg">NightShift</span>
-        <span class="text-xs font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">v0.1.3</span>
+        <span class="text-xs font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">v0.2.0</span>
       </a>
 
       <nav class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-400">
         <a href="#quickstart" class="hover:text-white transition">Quick Start</a>
         <a href="#workflow" class="hover:text-white transition">How It Works</a>
         <a href="#harnesses" class="hover:text-white transition">Agents</a>
+        <a href="#pullrequests" class="hover:text-white transition">Pull Requests</a>
+        <a href="#cloud" class="hover:text-white transition">Cloud Runner</a>
         <a href="#commands" class="hover:text-white transition">CLI Reference</a>
         <a href="#generator" class="hover:text-white transition">Task Playground</a>
         <a href="#faq" class="hover:text-white transition">FAQ</a>
@@ -104,7 +106,7 @@
         </a>
         <a href="https://www.npmjs.com/package/@junaedkhandakar/nightshift" target="_blank" rel="noopener noreferrer"
            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-brand-400 hover:bg-brand-500 rounded-lg transition font-mono">
-          npm v0.1.3
+          npm v0.2.0
         </a>
       </div>
     </div>
@@ -117,7 +119,7 @@
       <!-- Announcement Chip -->
       <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-850 border border-dark-700 text-xs text-slate-300 mb-8 shadow-sm">
         <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
-        <span>Version 0.1.3 Released: Includes <code>nightshift doctor</code> healthcheck</span>
+        <span>Version 0.2.0 Released: task tooling, pull request mode, and a cloud runner</span>
       </div>
 
       <!-- Main Headline -->
@@ -360,14 +362,18 @@
           <div class="flex items-center justify-between mb-3">
             <span class="text-sm font-bold text-white flex items-center gap-2">
               <span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 font-mono text-xs">Step 4</span>
-              Write a task in tasks/queue/
+              Write a Task in tasks/queue/
             </span>
             <button onclick="copySnippet('task-sample', this)" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono">
               <span>Copy</span>
             </button>
           </div>
-          <p class="text-xs text-slate-400 mb-3">Create <code>tasks/queue/001-fix-auth.md</code> with clear acceptance criteria:</p>
-          <pre id="task-sample" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-slate-300 overflow-x-auto">---
+          <p class="text-xs text-slate-400 mb-3">Scaffold the file from the terminal, then fill in the outcome and the acceptance criteria:</p>
+          <pre id="task-sample" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-slate-300 overflow-x-auto"># Let NightShift write the shell of the file
+nightshift add "fix the expired session redirect" --minutes 20
+
+# Then edit tasks/queue/fix-the-expired-session-redirect.md
+---
 minutes: 20
 turns: 30
 gate: npm test -- tests/auth
@@ -539,6 +545,148 @@ nightshift run</pre>
     </div>
   </section>
 
+  <!-- ======================== PULL REQUEST MODE ======================== -->
+  <section id="pullrequests" class="py-20 relative z-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">Pull Request Mode</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">Wake up to reviewable PRs, not loose branches</h3>
+        <p class="text-xs text-slate-400 mt-3">By default a finished task stays on a local branch. Add one flag and the morning inbox is full of pull requests instead.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <div class="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-300 font-mono">Enable it</span>
+            <button onclick="copySnippet('pr-enable', this)" class="text-xs text-slate-400 hover:text-white font-mono">Copy</button>
+          </div>
+          <pre id="pr-enable" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-brand-400 overflow-x-auto">nightshift run --create-pr</pre>
+        </div>
+
+        <div class="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-300 font-mono">Or set it permanently</span>
+            <button onclick="copySnippet('pr-config', this)" class="text-xs text-slate-400 hover:text-white font-mono">Copy</button>
+          </div>
+          <pre id="pr-config" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-xs text-slate-300 overflow-x-auto">// nightshift.config.json
+{
+  "pullRequests": {
+    "enabled": true,
+    "base": "main",
+    "draft": true
+  }
+}</pre>
+        </div>
+
+      </div>
+
+      <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-5">
+          <div class="text-xs font-bold text-white font-mono mb-2 text-brand-400">01. Commit</div>
+          <p class="text-xs text-slate-400">The verified work is committed on <code>nightshift/&lt;task-id&gt;</code> inside its own worktree.</p>
+        </div>
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-5">
+          <div class="text-xs font-bold text-white font-mono mb-2 text-brand-400">02. Push</div>
+          <p class="text-xs text-slate-400">The branch is pushed to <code>origin</code> and its upstream is set, so it is ready to review.</p>
+        </div>
+        <div class="bg-dark-850 border border-dark-800 rounded-xl p-5">
+          <div class="text-xs font-bold text-white font-mono mb-2 text-brand-400">03. Open</div>
+          <p class="text-xs text-slate-400">A pull request is opened through the GitHub CLI with the task, diffstat, gate result, and cost in the body.</p>
+        </div>
+      </div>
+
+      <div class="mt-8 p-5 rounded-xl bg-dark-850 border border-amber-500/30">
+        <p class="text-xs text-slate-300 leading-relaxed">
+          <strong class="text-amber-400">NightShift never merges.</strong> If the GitHub CLI is missing or not logged in, the run still succeeds and prints the compare URL so you can open the pull request yourself. The branch on disk is never lost.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================== CLOUD OVERNIGHT RUNNER ======================== -->
+  <section id="cloud" class="py-20 bg-dark-900/60 border-y border-dark-800 relative z-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <h2 class="text-xs uppercase tracking-widest text-brand-400 font-mono font-semibold mb-2">Cloud Overnight Runner</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-white">Let GitHub run the night instead of your laptop</h3>
+        <p class="text-xs text-slate-400 mt-3">Laptops sleep when the lid closes. A scheduled runner does not.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+        
+        <div class="lg:col-span-3 bg-dark-900 border border-dark-800 rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-300 font-mono">.github/workflows/nightshift.yml</span>
+            <button onclick="copySnippet('cloud-yaml', this)" class="text-xs text-slate-400 hover:text-white font-mono">Copy</button>
+          </div>
+          <pre id="cloud-yaml" class="bg-dark-950 p-3 rounded-lg border border-dark-800 font-mono text-[11px] text-slate-300 overflow-x-auto leading-relaxed">name: nightshift
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"   # 02:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install nightshift
+        run: npm install -g @junaedkhandakar/nightshift
+
+      - name: Install agent CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run nightshift
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: nightshift run --create-pr
+
+      - name: Summarise the night
+        if: always()
+        run: cat .nightshift/REPORT.md >> "$GITHUB_STEP_SUMMARY"</pre>
+        </div>
+
+        <div class="lg:col-span-2 space-y-5">
+          <div class="bg-dark-850 border border-dark-800 rounded-xl p-5">
+            <div class="text-sm font-bold text-white mb-2">1. Copy the template</div>
+            <p class="text-xs text-slate-400">The full template ships with the package at <code>templates/github-action.yml</code>. Every step that needs your input is marked.</p>
+          </div>
+          <div class="bg-dark-850 border border-dark-800 rounded-xl p-5">
+            <div class="text-sm font-bold text-white mb-2">2. Add your agent key</div>
+            <p class="text-xs text-slate-400">Under <strong>Settings -&gt; Secrets and variables -&gt; Actions</strong>, add <code>ANTHROPIC_API_KEY</code> or <code>OPENAI_API_KEY</code>.</p>
+          </div>
+          <div class="bg-dark-850 border border-dark-800 rounded-xl p-5">
+            <div class="text-sm font-bold text-white mb-2">3. Commit your tasks</div>
+            <p class="text-xs text-slate-400">Push task files into <code>tasks/queue/</code> during the day. The runner picks them up at 02:00 UTC and hands back pull requests.</p>
+          </div>
+          <div class="bg-dark-850 border border-dark-800 rounded-xl p-5">
+            <div class="text-sm font-bold text-white mb-2">4. Read the summary</div>
+            <p class="text-xs text-slate-400">The report is written to the job summary and uploaded as an artifact, so you can read the night in the morning without checking out anything.</p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
   <!-- ======================== COMMAND REFERENCE ======================== -->
   <section id="commands" class="py-20 relative z-10">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -564,6 +712,16 @@ nightshift run</pre>
               <td class="py-3.5 px-4 text-brand-400">nightshift init</td>
             </tr>
             <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift add</td>
+              <td class="py-3.5 px-4">Writes a task file into the queue, ready to edit</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift add "fix login redirect"</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift list</td>
+              <td class="py-3.5 px-4">Tables of queued, failed, and finished tasks with reasons</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift list</td>
+            </tr>
+            <tr>
               <td class="py-3.5 px-4 text-white font-semibold">nightshift doctor</td>
               <td class="py-3.5 px-4">Diagnoses Node, Git, config, and agent CLI readiness</td>
               <td class="py-3.5 px-4 text-brand-400">nightshift doctor</td>
@@ -584,6 +742,11 @@ nightshift run</pre>
               <td class="py-3.5 px-4 text-brand-400">nightshift run --dry-run --once</td>
             </tr>
             <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift run --create-pr</td>
+              <td class="py-3.5 px-4">Pushes each finished branch and opens a pull request</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift run --create-pr</td>
+            </tr>
+            <tr>
               <td class="py-3.5 px-4 text-white font-semibold">nightshift status</td>
               <td class="py-3.5 px-4">Prints queue counts, spend, and tail of <code>REPORT.md</code></td>
               <td class="py-3.5 px-4 text-brand-400">nightshift status</td>
@@ -592,6 +755,11 @@ nightshift run</pre>
               <td class="py-3.5 px-4 text-white font-semibold">nightshift retry &lt;id&gt;</td>
               <td class="py-3.5 px-4">Moves failed task back into the active queue</td>
               <td class="py-3.5 px-4 text-brand-400">nightshift retry 001-fix-auth</td>
+            </tr>
+            <tr>
+              <td class="py-3.5 px-4 text-white font-semibold">nightshift pr &lt;branch&gt;</td>
+              <td class="py-3.5 px-4">Opens a pull request for a branch that already has a commit</td>
+              <td class="py-3.5 px-4 text-brand-400">nightshift pr nightshift/001-fix-auth</td>
             </tr>
             <tr>
               <td class="py-3.5 px-4 text-white font-semibold">nightshift clean [--all]</td>

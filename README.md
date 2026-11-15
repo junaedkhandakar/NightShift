@@ -123,7 +123,12 @@ Open `nightshift.config.json` and configure your verification commands:
 
 Tasks are simple Markdown files placed inside `tasks/queue/`. The filename becomes the task ID and git branch name.
 
-Example: `tasks/queue/fix-login-redirect.md`
+Let NightShift write the shell for you:
+```bash
+nightshift add "fix the expired session redirect" --minutes 20
+```
+
+Then open `tasks/queue/fix-the-expired-session-redirect.md` and fill it in:
 ```markdown
 ---
 minutes: 20
@@ -195,12 +200,15 @@ nightshift <command> [options]
 | Command | Description |
 | :--- | :--- |
 | `nightshift init [--cwd <path>]` | Scaffolds configuration and task directories in the project. |
+| `nightshift add "<title>"` | Creates a task file in the queue, ready to edit. |
+| `nightshift list` | Shows queued, failed, and finished tasks as tables. |
 | `nightshift doctor` | Validates environment, Node version, Git status, and Agent CLI. |
 | `nightshift run` | Processes all tasks in `tasks/queue/` sequentially. |
 | `nightshift run --once` | Executes only the next task in queue and exits. |
 | `nightshift run --dry-run` | Executes the queue using a simulated agent (no API cost). |
 | `nightshift status` | Prints queue statistics, spend, and recent task report. |
 | `nightshift retry <id>` | Moves a task from `tasks/failed/<id>.md` back to `tasks/queue/`. |
+| `nightshift pr <branch>` | Opens a pull request for a branch that already has a commit. |
 | `nightshift clean [--all]` | Cleans completed worktrees (add `--all` to prune branches). |
 | `nightshift -v, --version` | Displays the current installed NightShift version. |
 | `nightshift -h, --help` | Displays help message and available options. |
@@ -213,6 +221,39 @@ Override configuration flags dynamically on any run:
 - `--max-turns <n>` — Maximum conversational turns
 - `--budget <usd>` — Spend ceiling (stops runner when reached)
 - `--max-tasks <n>` — Maximum number of tasks to complete
+- `--create-pr` — Push each finished branch and open a pull request
+- `--draft` — Open the pull requests as drafts
+- `--base <branch>` — Pull request base branch (default: the repo default)
+
+### Creating a task without leaving the terminal
+`nightshift add` writes the file, the frontmatter, and a placeholder body for you:
+
+```bash
+nightshift add "fix the expired session redirect" --minutes 25
+# [ok] wrote tasks/queue/fix-the-expired-session-redirect.md
+```
+
+Then edit the file and describe the outcome. The filename becomes the task id
+and the branch name.
+
+### Seeing what happened
+`nightshift list` reads the queue, the failed pile, and the report, then prints
+them as tables. Failed tasks show the exact reason, so you do not have to open
+the markdown report to find out why a task was rejected.
+
+```bash
+nightshift list
+
+queue (1)
+id                        minutes  turns  gate      title
+------------------------  -------  -----  --------  ----------------------
+fix-login-redirect        25       60     npm test  Fix the expired session redirect
+
+failed (1)
+id             why
+-------------  ------------------------------------------------
+flaky-test     gate failed: `npm test` exit 1
+```
 
 ---
 
@@ -245,6 +286,13 @@ Settings live in `nightshift.config.json` at your project root:
   "notify": {
     "webhook": null,
     "format": "text"
+  },
+  "pullRequests": {
+    "enabled": false,
+    "remote": "origin",
+    "base": null,
+    "draft": false,
+    "title": null
   }
 }
 ```
@@ -253,6 +301,65 @@ Settings live in `nightshift.config.json` at your project root:
 - **`limits.budgetUSD`**: Hard spending stop (supported accurately on Claude via streaming token usage).
 - **`protect`**: Glob patterns that reject tasks if modified by the agent.
 - **`notify`**: Send execution summaries to Discord, Slack, or ntfy webhooks.
+- **`pullRequests`**: Push finished branches and open pull requests. `enabled` turns it on, `base` picks the target branch, `draft` opens them as drafts, and `title` overrides the default `nightshift: <id>` title.
+
+---
+
+## Pull Request Mode
+
+By default a finished task stays on a local branch. Turn on pull request mode
+and the morning inbox is full of reviewable PRs instead.
+
+```bash
+nightshift run --create-pr
+```
+
+For every task that passes the gate, NightShift will:
+1. Commit the work on `nightshift/<task-id>`.
+2. Push the branch to `origin`.
+3. Open a pull request through the GitHub CLI, with the task text, the diffstat,
+   the gate result, and the cost in the body.
+
+The branch is still yours to review. NightShift never merges.
+
+If the GitHub CLI (`gh`) is not installed or not logged in, the run does not
+fail. NightShift prints the compare URL so you can open the pull request
+yourself.
+
+Configure it permanently in `nightshift.config.json`:
+```json
+{
+  "pullRequests": {
+    "enabled": true,
+    "base": "main",
+    "draft": true
+  }
+}
+```
+
+---
+
+## Running the Night in the Cloud
+
+Your laptop sleeps when the lid closes, so the queue needs a machine that stays
+awake. Copy `templates/github-action.yml` into your project as
+`.github/workflows/nightshift.yml` and it will run the whole queue every night
+at 02:00 UTC on a GitHub runner.
+
+```yaml
+on:
+  schedule:
+    - cron: "0 2 * * *"
+```
+
+Add your agent key under **Settings -> Secrets and variables -> Actions**
+(`ANTHROPIC_API_KEY` for Claude Code, `OPENAI_API_KEY` for Codex). Commit your
+task files to `tasks/queue/` during the day, and the runner picks them up while
+you sleep. The finished work arrives as pull requests, and the report lands in
+the job summary.
+
+Read the template before you copy it. It spells out every step you have to
+adjust.
 
 ---
 
@@ -276,7 +383,9 @@ Headless coding agents run code and execute shell commands without human interve
 | `failed ... protected path` | The agent edited a restricted file (tests, lockfile, CI) | Reword the task prompt so the agent understands it must not touch test or CI definitions. |
 | `failed ... timed out` | Task exceeded wall-clock minute limit | Increase `minutes` in the task frontmatter or break the task into smaller sub-tasks. |
 | `failed ... not found` | Selected agent CLI is not installed or available | Verify the agent CLI (`claude --version`, `codex --version`, etc.) is installed globally. |
-| Nothing happens on `run` | `tasks/queue/` contains no `.md` files | Add a Markdown task file to `tasks/queue/`. |
+| Nothing happens on `run` | `tasks/queue/` contains no `.md` files | Add a Markdown task file to `tasks/queue/`, or run `nightshift add "<title>"`. |
+| `pull request not created` | The GitHub CLI (`gh`) is missing or not logged in | Install `gh` and run `gh auth login`, or open the printed compare URL. |
+| `could not push ... to origin` | No remote, or the remote rejects the push | Check `git remote -v` and that you have write access to the repository. |
 
 ---
 

@@ -34,6 +34,13 @@ export const DEFAULTS = {
     webhook: null,
     format: "text",
   },
+  pullRequests: {
+    enabled: false,
+    remote: "origin",
+    base: null,
+    draft: false,
+    title: null,
+  },
   paths: {
     tasks: "tasks/queue",
     done: "tasks/done",
@@ -68,5 +75,6 @@ export function defaultConfigFile() {
     baseBranch: "HEAD",
     branchPrefix: "nightshift/",
     notify: { webhook: null, format: "text" },
+    pullRequests: { enabled: false, remote: "origin", base: null, draft: false, title: null },
   };
 }

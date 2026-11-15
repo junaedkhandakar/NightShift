@@ -69,3 +69,41 @@ export function finish(file, destDir) {
   renameSync(file, dest);
   return dest;
 }
+
+/**
+ * List the task files in a directory with their frontmatter and title, so the
+ * CLI can show a table without parsing every file twice.
+ */
+export function listTasks(dir) {
+  if (!existsSync(dir)) return [];
+
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .sort()
+    .map((name) => {
+      const id = name.replace(/\.md$/, "");
+      const file = path.join(dir, name);
+      let meta = {};
+      let title = null;
+
+      try {
+        const raw = readFileSync(file, "utf8");
+        const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+        const body = fm ? raw.slice(fm[0].length) : raw;
+
+        if (fm) {
+          for (const line of fm[1].split(/\r?\n/)) {
+            const kv = line.match(/^([a-zA-Z][\w-]*)\s*:\s*(.*)$/);
+            if (kv) meta[kv[1]] = kv[2].trim();
+          }
+        }
+
+        const heading = body.match(/^#\s+(.+)$/m);
+        if (heading) title = heading[1].trim();
+      } catch {
+        // an unreadable task file should not break the listing
+      }
+
+      return { id, file, meta, title };
+    });
+}

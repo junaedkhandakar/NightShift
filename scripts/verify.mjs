@@ -7,7 +7,8 @@
 //   - the CLI failing to answer --help / version
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -62,13 +63,37 @@ try {
 }
 
 // 4. The CLI must answer for itself.
-for (const args of [["--help"], ["-h"], ["version"], ["-v"], ["status"], ["doctor"]]) {
+for (const args of [["--help"], ["-h"], ["version"], ["-v"], ["status"], ["doctor"], ["list"]]) {
   try {
     execFileSync(process.execPath, [path.join(srcDir, "cli.mjs"), ...args], { stdio: "pipe" });
     ok(`cli ${args.join(" ")}`);
   } catch (err) {
     fail(`cli ${args.join(" ")}`, err);
   }
+}
+
+// 5. `nightshift add` must write a usable task file into the queue.
+const scratch = mkdtempSync(path.join(os.tmpdir(), "nightshift-verify-"));
+try {
+  execFileSync(
+    process.execPath,
+    [path.join(srcDir, "cli.mjs"), "add", "Verify The Add Command", "--minutes", "17", "--cwd", scratch],
+    { stdio: "pipe" },
+  );
+
+  const taskFile = path.join(scratch, "tasks", "queue", "verify-the-add-command.md");
+  if (!existsSync(taskFile)) {
+    fail("cli add did not write the task file");
+  } else {
+    const body = readFileSync(taskFile, "utf8");
+    const missing = ["minutes: 17", "# Verify The Add Command"].filter((token) => !body.includes(token));
+    if (missing.length) fail(`task file from "add" is missing ${missing.join(", ")}`);
+    else ok("cli add writes a valid task file");
+  }
+} catch (err) {
+  fail("cli add", err);
+} finally {
+  rmSync(scratch, { recursive: true, force: true });
 }
 
 if (failures) {

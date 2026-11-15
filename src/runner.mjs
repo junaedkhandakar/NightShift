@@ -9,7 +9,9 @@ import { claim, ensureDirs, finish, parseTask, paths as makePaths, recover } fro
 import { appendTask, ensureReport, notify } from "./report.mjs";
 import { loadState, saveState } from "./state.mjs";
 import { filterMatches } from "./glob.mjs";
+import { buildPullRequestBody, createPullRequest, defaultBranch, pushBranch } from "./pr.mjs";
 import { fmtDuration, fmtUSD, nowISO } from "./util.mjs";
+import { green, mark, red, startSpinner, yellow } from "./term.mjs";
 
 const TEMPLATE = fileURLToPath(new URL("../prompts/task.md", import.meta.url));
 
@@ -56,10 +58,18 @@ export async function runSession({ cwd, cfg, dryRun = false, once = false, log =
     saveState(P.state, state);
     appendTask(P.report, result);
     log(
-      `${result.status === "done" ? "done  " : "failed"} ${result.id} ` +
+      `${result.status === "done" ? green(mark.ok) : red(mark.fail)} ${result.id} ` +
         `(${fmtDuration(result.durationMs)}${result.costUSD ? `, ${fmtUSD(result.costUSD)}` : ""})` +
         (result.reason ? ` — ${result.reason}` : ""),
     );
+    if (result.pr) {
+      log(
+        result.pr.ok
+          ? `  ${green("->")} pull request opened: ${result.pr.url}`
+          : `  ${yellow("->")} pull request not created (${result.pr.reason})` +
+              (result.pr.url ? ` — open it manually: ${result.pr.url}` : ""),
+      );
+    }
   }
 
   const summary =
@@ -137,12 +147,19 @@ async function runTask({ cwd, cfg, P, state, harness, claimed, log }) {
       });
 
       const budgetLeft = Math.max(60_000, deadline - Date.now() - GATE_RESERVE_MS);
-      run = await runLogged({
-        ...command,
-        cwd: worktree,
-        timeoutMs: budgetLeft,
-        logPath: harnessLog,
-      });
+      const spin = startSpinner(
+        () => `${mark.run} ${harness} working on ${id} (${fmtDuration(Date.now() - started)} elapsed)`,
+      );
+      try {
+        run = await runLogged({
+          ...command,
+          cwd: worktree,
+          timeoutMs: budgetLeft,
+          logPath: harnessLog,
+        });
+      } finally {
+        spin.stop();
+      }
       result.log = harnessLog;
     }
 
@@ -198,6 +215,11 @@ async function runTask({ cwd, cfg, P, state, harness, claimed, log }) {
       }
     }
 
+    // Optional: push the branch and open a pull request for it. Never fatal.
+    if (result.status === "done" && cfg.pullRequests?.enabled) {
+      result.pr = openPullRequest({ cwd, cfg, id, task, branch, result });
+    }
+
     if (result.status === "done") {
       finish(file, P.done);
     } else {
@@ -228,8 +250,49 @@ async function runTask({ cwd, cfg, P, state, harness, claimed, log }) {
   return result;
 }
 
-function renderPrompt({ id, task, gate, protect, attempt }) {
-  const override = path.join(path.dirname(TEMPLATE), "task.local.md");
+/**
+ * Push the finished branch and open a pull request. Every failure is
+ * swallowed: the branch stays on disk and the user gets a link to open it.
+ */
+function openPullRequest({ cwd, cfg, id, task, branch, result }) {
+  const options = cfg.pullRequests ?? {};
+  const remote = options.remote ?? "origin";
+  const base = options.base ?? defaultBranch(cwd);
+
+  if (!pushBranch(cwd, branch, remote)) {
+    return {
+      ok: false,
+      reason: `could not push ${branch} to ${remote}`,
+      url: null,
+    };
+  }
+
+  const body = buildPullRequestBody({
+    id,
+    task: task.body,
+    stat: result.stat,
+    gate: result.gate,
+    costUSD: result.costUSD,
+    durationMs: result.durationMs,
+    harness: result.harness,
+  });
+
+  const title = options.title
+    ? options.title.replace("{id}", id)
+    : `nightshift: ${id}`;
+
+  return createPullRequest({
+    cwd,
+    branch,
+    base,
+    title,
+    body,
+    draft: Boolean(options.draft),
+    remote,
+  });
+}
+
+function renderPrompt({ id, task, gate, protect, attempt }) {  const override = path.join(path.dirname(TEMPLATE), "task.local.md");
   const template = existsSync(override) ? readFileSync(override, "utf8") : readFileSync(TEMPLATE, "utf8");
 
   return template
