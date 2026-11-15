@@ -47,6 +47,7 @@
     "run": "node src/cli.mjs run",
     "once": "node src/cli.mjs run --once",
     "status": "node src/cli.mjs status",
-    "demo": "node src/cli.mjs run --once --dry-run"
+    "demo": "node src/cli.mjs run --once --dry-run",
+    "docs": "node scripts/serve-docs.mjs docs 4173"
   }
 }

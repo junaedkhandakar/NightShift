@@ -401,6 +401,12 @@ npm test
 npm link
 ```
 
+### Previewing the documentation site
+
+```bash
+npm run docs      # serves docs/ on http://localhost:4173
+```
+
 ### Automated Release Workflow
 
 Releases are published automatically to npm using GitHub Actions Trusted Publishing (OIDC):

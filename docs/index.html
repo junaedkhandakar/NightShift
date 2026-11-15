@@ -67,6 +67,10 @@
       background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
                         linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     }
+    /* Anchor links must not land under the sticky header. */
+    section[id] {
+      scroll-margin-top: 5.5rem;
+    }
   </style>
 </head>
 
@@ -78,40 +82,62 @@
 
   <!-- ======================== NAVIGATION ======================== -->
   <header class="sticky top-0 z-50 backdrop-blur-md bg-dark-950/80 border-b border-dark-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <a href="#" class="flex items-center gap-3 group">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-4 justify-between">
+      <a href="#" class="flex items-center gap-3 group shrink-0">
         <div class="w-9 h-9 rounded-lg bg-dark-850 border border-dark-700 flex items-center justify-center text-brand-400 font-mono font-bold text-lg shadow-sm group-hover:border-brand-500/50 transition">
           NS
         </div>
-        <span class="text-white font-bold tracking-tight text-lg">NightShift</span>
-        <span class="text-xs font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">v0.2.0</span>
+        <span class="text-white font-bold tracking-tight text-lg whitespace-nowrap">NightShift</span>
+        <span class="hidden sm:inline-flex text-xs font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20 whitespace-nowrap">v0.2.0</span>
       </a>
 
-      <nav class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-400">
+      <nav class="hidden xl:flex items-center gap-x-4 text-[13px] font-medium text-slate-400 whitespace-nowrap">
         <a href="#quickstart" class="hover:text-white transition">Quick Start</a>
         <a href="#workflow" class="hover:text-white transition">How It Works</a>
         <a href="#harnesses" class="hover:text-white transition">Agents</a>
         <a href="#pullrequests" class="hover:text-white transition">Pull Requests</a>
         <a href="#cloud" class="hover:text-white transition">Cloud Runner</a>
         <a href="#commands" class="hover:text-white transition">CLI Reference</a>
-        <a href="#generator" class="hover:text-white transition">Task Playground</a>
+        <a href="#generator" class="hover:text-white transition">Playground</a>
         <a href="#faq" class="hover:text-white transition">FAQ</a>
       </nav>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 shrink-0 ml-auto xl:ml-0">
         <a href="https://github.com/junaedkhandakar/NightShift" target="_blank" rel="noopener noreferrer" 
-           class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-dark-850 hover:bg-dark-800 border border-dark-700 rounded-lg transition">
+           class="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-dark-850 hover:bg-dark-800 border border-dark-700 rounded-lg transition whitespace-nowrap">
           <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           GitHub
         </a>
         <a href="https://www.npmjs.com/package/@junaedkhandakar/nightshift" target="_blank" rel="noopener noreferrer"
-           class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-brand-400 hover:bg-brand-500 rounded-lg transition font-mono">
-          npm v0.2.0
+           class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-brand-400 hover:bg-brand-500 rounded-lg transition font-mono whitespace-nowrap">
+          <span class="sm:hidden">npm</span><span class="hidden sm:inline">npm v0.2.0</span>
         </a>
+
+        <!-- Mobile menu toggle -->
+        <button id="menuBtn" type="button" aria-label="Toggle menu" aria-expanded="false"
+                class="xl:hidden flex items-center justify-center w-9 h-9 rounded-lg bg-dark-850 hover:bg-dark-800 border border-dark-700 text-slate-300 transition">
+          <svg id="menuIconOpen" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <svg id="menuIconClose" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
       </div>
+    </div>
+
+    <!-- Mobile menu panel -->
+    <div id="mobileMenu" class="xl:hidden hidden border-t border-dark-800 bg-dark-950/95 backdrop-blur-md">
+      <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 text-sm font-medium text-slate-300">
+        <a href="#quickstart" class="hover:text-brand-400 transition">Quick Start</a>
+        <a href="#workflow" class="hover:text-brand-400 transition">How It Works</a>
+        <a href="#harnesses" class="hover:text-brand-400 transition">Agents</a>
+        <a href="#pullrequests" class="hover:text-brand-400 transition">Pull Requests</a>
+        <a href="#cloud" class="hover:text-brand-400 transition">Cloud Runner</a>
+        <a href="#commands" class="hover:text-brand-400 transition">CLI Reference</a>
+        <a href="#generator" class="hover:text-brand-400 transition">Task Playground</a>
+        <a href="#faq" class="hover:text-brand-400 transition">FAQ</a>
+      </nav>
     </div>
   </header>
 
+  <main>
   <!-- ======================== HERO SECTION ======================== -->
   <section class="relative z-10 pt-20 pb-16 md:pt-28 md:pb-24">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -432,7 +458,7 @@ nightshift run</pre>
               --harness claude
             </div>
           </div>
-          <div class="text-[11px] text-slate-500 font-mono">
+          <div class="text-xs text-slate-400 font-mono">
             Needs: claude CLI logged in or ANTHROPIC_API_KEY
           </div>
         </div>
@@ -450,7 +476,7 @@ nightshift run</pre>
               --harness codex
             </div>
           </div>
-          <div class="text-[11px] text-slate-500 font-mono">
+          <div class="text-xs text-slate-400 font-mono">
             Needs: codex CLI logged in
           </div>
         </div>
@@ -468,7 +494,7 @@ nightshift run</pre>
               --harness opencode
             </div>
           </div>
-          <div class="text-[11px] text-slate-500 font-mono">
+          <div class="text-xs text-slate-400 font-mono">
             Needs: opencode CLI installed
           </div>
         </div>
@@ -493,32 +519,32 @@ nightshift run</pre>
         <!-- Input Form -->
         <div class="space-y-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Task Filename / ID</label>
+            <label for="genId" class="block text-xs font-semibold text-slate-300 mb-1">Task Filename / ID</label>
             <input type="text" id="genId" value="add-health-check" oninput="updateTaskGen()" 
                    class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Time Limit (mins)</label>
+              <label for="genMins" class="block text-xs font-semibold text-slate-300 mb-1">Time Limit (mins)</label>
               <input type="number" id="genMins" value="20" oninput="updateTaskGen()" 
                      class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Max Turns</label>
+              <label for="genTurns" class="block text-xs font-semibold text-slate-300 mb-1">Max Turns</label>
               <input type="number" id="genTurns" value="30" oninput="updateTaskGen()" 
                      class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Specific Gate Command</label>
+            <label for="genGate" class="block text-xs font-semibold text-slate-300 mb-1">Specific Gate Command</label>
             <input type="text" id="genGate" value="npm test" oninput="updateTaskGen()" 
                    class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Task Instructions</label>
+            <label for="genDesc" class="block text-xs font-semibold text-slate-300 mb-1">Task Instructions</label>
             <textarea id="genDesc" rows="4" oninput="updateTaskGen()" 
                       class="w-full bg-dark-950 border border-dark-700 rounded-lg px-3 py-2 text-xs font-sans text-white focus:outline-none focus:border-brand-500">Add a `GET /health` endpoint that returns status 200 and {"status":"ok"}. Follow existing controller patterns.</textarea>
           </div>
@@ -535,7 +561,7 @@ nightshift run</pre>
             </div>
             <pre id="genOutput" class="bg-dark-950 border border-dark-700 rounded-xl p-4 text-xs font-mono text-slate-300 h-64 overflow-y-auto whitespace-pre-wrap"></pre>
           </div>
-          <div class="text-[11px] text-slate-500 font-mono mt-3">
+          <div class="text-xs text-slate-400 font-mono mt-3">
             Place this in <code>tasks/queue/</code> before running NightShift.
           </div>
         </div>
@@ -833,9 +859,10 @@ jobs:
 
     </div>
   </section>
+  </main>
 
   <!-- ======================== FOOTER ======================== -->
-  <footer class="py-12 border-t border-dark-800 bg-dark-950 text-xs text-slate-500 relative z-10">
+  <footer class="py-12 border-t border-dark-800 bg-dark-950 text-xs text-slate-400 relative z-10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
       
       <div class="flex items-center gap-3">
@@ -855,6 +882,33 @@ jobs:
 
   <!-- ======================== SCRIPTS ======================== -->
   <script>
+    // Mobile menu toggle
+    const menuBtn = document.getElementById('menuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    const iconOpen = document.getElementById('menuIconOpen');
+    const iconClose = document.getElementById('menuIconClose');
+
+    function setMenu(open) {
+      mobileMenu.classList.toggle('hidden', !open);
+      iconOpen.classList.toggle('hidden', open);
+      iconClose.classList.toggle('hidden', !open);
+      menuBtn.setAttribute('aria-expanded', String(open));
+    }
+
+    menuBtn.addEventListener('click', () => {
+      setMenu(mobileMenu.classList.contains('hidden'));
+    });
+
+    // Close the mobile menu after a link is tapped.
+    mobileMenu.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => setMenu(false));
+    });
+
+    // Close the mobile menu when the layout grows past the breakpoint.
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 1280) setMenu(false);
+    });
+
     // Copy button helper
     function copyCommand(text, btn) {
       navigator.clipboard.writeText(text);
